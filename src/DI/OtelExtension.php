@@ -4,23 +4,50 @@ declare(strict_types=1);
 
 namespace Lsr\Otel\DI;
 
+use Lsr\Caching\Cache;
+use Lsr\Caching\Lifecycle\CacheLifecycleHookInterface;
+use Lsr\Core\App;
+use Lsr\Core\Auth\Lifecycle\AuthLifecycleHookInterface;
+use Lsr\Core\Auth\Services\Auth;
 use Lsr\Core\FpmHandler;
 use Lsr\Core\Http\Lifecycle\RequestLifecycleHookInterface;
+use Lsr\Core\Http\Lifecycle\RouteResolutionHookInterface;
+use Lsr\Core\Requests\Lifecycle\RequestMappingLifecycleHookInterface;
+use Lsr\Core\Requests\Validation\RequestValidationMapper;
+use Lsr\Db\Connection;
+use Lsr\Db\Lifecycle\DatabaseLifecycleHookInterface;
+use Lsr\Inertia\Lifecycle\InertiaLifecycleHookInterface;
+use Lsr\Inertia\Services\Inertia;
+use Lsr\Orm\Lifecycle\ModelLifecycleHookInterface;
+use Lsr\Orm\ModelRepository;
+use Lsr\Otel\Bridge\Auth\AuthLifecycleHook;
+use Lsr\Otel\Bridge\Cache\CacheLifecycleHook;
 use Lsr\CQRS\CommandBus;
 use Lsr\Otel\Bridge\Console\ConsoleTelemetrySubscriber;
 use Lsr\Otel\Bridge\Core\FpmFlushHandler;
 use Lsr\Otel\Bridge\Core\HttpServerLifecycleHook;
 use Lsr\Otel\Bridge\Cqrs\CommandLifecycleHook;
+use Lsr\Otel\Bridge\Core\RouteResolutionHook;
+use Lsr\Otel\Bridge\Database\DatabaseLifecycleHook;
+use Lsr\Otel\Bridge\Inertia\InertiaLifecycleHook;
+use Lsr\Otel\Bridge\Orm\ModelLifecycleHook;
+use Lsr\Otel\Bridge\Request\RequestMappingLifecycleHook;
 use Lsr\Otel\Bridge\RoadRunner\PeriodicWorkerLifecycleHook;
 use Lsr\Otel\Bridge\RoadRunner\TaskConsumerLifecycleHook;
 use Lsr\Otel\Bridge\RoadRunner\TaskProducerLifecycleHook;
+use Lsr\Otel\Bridge\Scheduler\SchedulerLifecycleHook;
 use Lsr\Otel\InstrumentationRegistry;
+use Lsr\Otel\Metrics;
 use Lsr\Otel\Lifecycle\TelemetryLifecycle;
 use Lsr\Otel\Lifecycle\TelemetryLifecycleInterface;
 use Lsr\Otel\ProviderFactory;
+use Lsr\Otel\Tracing;
 use Lsr\Roadrunner\Lifecycle\TaskDispatchLifecycleHookInterface;
 use Lsr\Roadrunner\Lifecycle\TaskLifecycleHookInterface;
 use Lsr\Roadrunner\Lifecycle\WorkerLifecycleHookInterface;
+use Lsr\Scheduler\Internal\ScheduledCommandMessageHandler;
+use Lsr\Scheduler\Internal\SchedulerJobMessageHandler;
+use Lsr\Scheduler\Lifecycle\SchedulerLifecycleHookInterface;
 use Lsr\Roadrunner\Tasks\TaskProducer;
 use Lsr\Roadrunner\Workers\HttpWorker;
 use Lsr\Roadrunner\Workers\JobsWorker;
@@ -47,6 +74,7 @@ use Symfony\Component\EventDispatcher\EventSubscriberInterface;
  * @property-read object{
  *     enabled: bool,
  *     autoShutdown: bool,
+ *     applicationInstrumentation: object{name: ?string, version: ?string},
  *     integrations: object{
  *         core: object{enabled: bool, traces: bool, metrics: bool},
  *         roadrunner: object{
@@ -57,7 +85,23 @@ use Symfony\Component\EventDispatcher\EventSubscriberInterface;
  *             flushInterval: float
  *         },
  *         console: object{enabled: bool, traces: bool, metrics: bool},
- *         cqrs: object{enabled: bool, traces: bool, metrics: bool}
+ *         cqrs: object{enabled: bool, traces: bool, metrics: bool},
+ *         cache: object{enabled: bool, traces: bool, metrics: bool},
+ *         routing: object{enabled: bool, traces: bool, metrics: bool},
+ *         scheduler: object{enabled: bool, traces: bool, metrics: bool},
+ *         auth: object{enabled: bool, traces: bool, metrics: bool},
+ *         request: object{enabled: bool, traces: bool, metrics: bool},
+ *         inertia: object{enabled: bool, traces: bool, metrics: bool},
+ *         database: object{enabled: bool, traces: bool, metrics: bool, includeRawSql: bool},
+ *         orm: object{
+ *             enabled: bool,
+ *             traces: bool,
+ *             metrics: bool,
+ *             mutations: bool,
+ *             queries: bool,
+ *             hydration: bool,
+ *             modelMetrics: bool
+ *         }
  *     }
  * }&stdClass $config
  */
@@ -67,6 +111,10 @@ final class OtelExtension extends CompilerExtension
         return Expect::structure([
             'enabled' => Expect::bool(true),
             'autoShutdown' => Expect::bool(true),
+            'applicationInstrumentation' => Expect::structure([
+                'name' => Expect::string()->nullable()->default(null),
+                'version' => Expect::string()->nullable()->default(null),
+            ]),
             'integrations' => Expect::structure([
                 'core' => $this->integrationSchema(),
                 'roadrunner' => Expect::structure([
@@ -78,6 +126,27 @@ final class OtelExtension extends CompilerExtension
                 ]),
                 'console' => $this->integrationSchema(),
                 'cqrs' => $this->integrationSchema(),
+                'cache' => $this->integrationSchema(),
+                'routing' => $this->integrationSchema(),
+                'scheduler' => $this->integrationSchema(),
+                'auth' => $this->integrationSchema(),
+                'request' => $this->integrationSchema(),
+                'inertia' => $this->integrationSchema(),
+                'database' => Expect::structure([
+                    'enabled' => Expect::bool(true),
+                    'traces' => Expect::bool(true),
+                    'metrics' => Expect::bool(true),
+                    'includeRawSql' => Expect::bool(false),
+                ]),
+                'orm' => Expect::structure([
+                    'enabled' => Expect::bool(true),
+                    'traces' => Expect::bool(true),
+                    'metrics' => Expect::bool(true),
+                    'mutations' => Expect::bool(true),
+                    'queries' => Expect::bool(true),
+                    'hydration' => Expect::bool(false),
+                    'modelMetrics' => Expect::bool(false),
+                ]),
             ]),
         ]);
     }
@@ -133,6 +202,7 @@ final class OtelExtension extends CompilerExtension
                 InstrumentationRegistry::class,
                 [$tracerProvider, $meterProvider, $loggerProvider],
             );
+        $this->registerApplicationInstrumentation();
 
         if (!$this->config->enabled) {
             return;
@@ -142,6 +212,14 @@ final class OtelExtension extends CompilerExtension
         $this->registerRoadRunnerIntegration();
         $this->registerConsoleIntegration();
         $this->registerCqrsIntegration();
+        $this->registerCacheIntegration();
+        $this->registerRoutingIntegration();
+        $this->registerSchedulerIntegration();
+        $this->registerAuthIntegration();
+        $this->registerRequestIntegration();
+        $this->registerInertiaIntegration();
+        $this->registerDatabaseIntegration();
+        $this->registerOrmIntegration();
     }
 
     public function beforeCompile(): void {
@@ -199,6 +277,47 @@ final class OtelExtension extends CompilerExtension
         if ($builder->hasDefinition($this->prefix('integration.console.subscriber'))) {
             $this->wireConsoleDispatcher();
         }
+
+        if ($builder->hasDefinition($this->prefix('integration.cache'))) {
+            $this->wire(Cache::class, 'setLifecycleHook', $this->prefix('integration.cache'));
+        }
+
+        if ($builder->hasDefinition($this->prefix('integration.routing'))) {
+            $this->wire(App::class, 'setRouteResolutionHook', $this->prefix('integration.routing'));
+        }
+
+        if ($builder->hasDefinition($this->prefix('integration.scheduler'))) {
+            $this->wire(
+                SchedulerJobMessageHandler::class,
+                'setLifecycleHook',
+                $this->prefix('integration.scheduler'),
+            );
+            $this->wire(
+                ScheduledCommandMessageHandler::class,
+                'setLifecycleHook',
+                $this->prefix('integration.scheduler'),
+            );
+        }
+
+        if ($builder->hasDefinition($this->prefix('integration.auth'))) {
+            $this->wire(Auth::class, 'setLifecycleHook', $this->prefix('integration.auth'));
+        }
+
+        if ($builder->hasDefinition($this->prefix('integration.request'))) {
+            $this->wire(
+                RequestValidationMapper::class,
+                'setLifecycleHook',
+                $this->prefix('integration.request'),
+            );
+        }
+
+        if ($builder->hasDefinition($this->prefix('integration.inertia'))) {
+            $this->wire(Inertia::class, 'setLifecycleHook', $this->prefix('integration.inertia'));
+        }
+
+        if ($builder->hasDefinition($this->prefix('integration.database'))) {
+            $this->wireDatabaseIntegration();
+        }
     }
 
     public function afterCompile(ClassType $class): void {
@@ -206,6 +325,12 @@ final class OtelExtension extends CompilerExtension
             '$this->getService(?);',
             [$this->prefix('lifecycle')],
         );
+        if ($this->getContainerBuilder()->hasDefinition($this->prefix('integration.orm'))) {
+            $this->initialization->addBody(
+                '\\Lsr\\Orm\\ModelRepository::setLifecycleHook($this->getService(?));',
+                [$this->prefix('integration.orm')],
+            );
+        }
     }
 
     private function integrationSchema(): Schema {
@@ -214,6 +339,22 @@ final class OtelExtension extends CompilerExtension
             'traces' => Expect::bool(true),
             'metrics' => Expect::bool(true),
         ]);
+    }
+
+    private function registerApplicationInstrumentation(): void {
+        $config = $this->config->applicationInstrumentation;
+        if ($config->name === null) {
+            return;
+        }
+
+        $registry = new Reference($this->prefix('instrumentation'));
+        $builder = $this->getContainerBuilder();
+        $builder->addDefinition($this->prefix('tracing'))
+            ->setType(Tracing::class)
+            ->setFactory([$registry, 'tracing'], [$config->name, $config->version]);
+        $builder->addDefinition($this->prefix('metrics'))
+            ->setType(Metrics::class)
+            ->setFactory([$registry, 'metrics'], [$config->name, $config->version]);
     }
 
     private function registerCoreIntegration(): void {
@@ -330,6 +471,182 @@ final class OtelExtension extends CompilerExtension
                 $config->traces,
                 $config->metrics,
             ]);
+    }
+
+    private function registerCacheIntegration(): void {
+        $config = $this->config->integrations->cache;
+        if (
+            !$this->shouldRegister($config)
+            || !interface_exists(CacheLifecycleHookInterface::class)
+            || !method_exists(Cache::class, 'setLifecycleHook')
+        ) {
+            return;
+        }
+
+        $this->getContainerBuilder()
+            ->addDefinition($this->prefix('integration.cache'))
+            ->setType(CacheLifecycleHookInterface::class)
+            ->setFactory(CacheLifecycleHook::class, [
+                new Reference($this->prefix('instrumentation')),
+                $config->traces,
+                $config->metrics,
+            ]);
+    }
+
+    private function registerRoutingIntegration(): void {
+        $config = $this->config->integrations->routing;
+        if (
+            !$this->shouldRegister($config)
+            || !interface_exists(RouteResolutionHookInterface::class)
+            || !method_exists(App::class, 'setRouteResolutionHook')
+        ) {
+            return;
+        }
+
+        $this->getContainerBuilder()
+            ->addDefinition($this->prefix('integration.routing'))
+            ->setType(RouteResolutionHookInterface::class)
+            ->setFactory(RouteResolutionHook::class, [
+                new Reference($this->prefix('instrumentation')),
+                $config->traces,
+                $config->metrics,
+            ]);
+    }
+
+    private function registerSchedulerIntegration(): void {
+        $config = $this->config->integrations->scheduler;
+        if (
+            !$this->shouldRegister($config)
+            || !interface_exists(SchedulerLifecycleHookInterface::class)
+            || !method_exists(SchedulerJobMessageHandler::class, 'setLifecycleHook')
+            || !method_exists(ScheduledCommandMessageHandler::class, 'setLifecycleHook')
+        ) {
+            return;
+        }
+
+        $this->getContainerBuilder()
+            ->addDefinition($this->prefix('integration.scheduler'))
+            ->setType(SchedulerLifecycleHookInterface::class)
+            ->setFactory(SchedulerLifecycleHook::class, [
+                new Reference($this->prefix('instrumentation')),
+                $config->traces,
+                $config->metrics,
+            ]);
+    }
+
+    private function registerAuthIntegration(): void {
+        $config = $this->config->integrations->auth;
+        if (
+            !$this->shouldRegister($config)
+            || !interface_exists(AuthLifecycleHookInterface::class)
+            || !method_exists(Auth::class, 'setLifecycleHook')
+        ) {
+            return;
+        }
+
+        $this->getContainerBuilder()
+            ->addDefinition($this->prefix('integration.auth'))
+            ->setType(AuthLifecycleHookInterface::class)
+            ->setFactory(AuthLifecycleHook::class, [
+                new Reference($this->prefix('instrumentation')),
+                $config->traces,
+                $config->metrics,
+            ]);
+    }
+
+    private function registerRequestIntegration(): void {
+        $config = $this->config->integrations->request;
+        if (
+            !$this->shouldRegister($config)
+            || !interface_exists(RequestMappingLifecycleHookInterface::class)
+            || !method_exists(RequestValidationMapper::class, 'setLifecycleHook')
+        ) {
+            return;
+        }
+
+        $this->getContainerBuilder()
+            ->addDefinition($this->prefix('integration.request'))
+            ->setType(RequestMappingLifecycleHookInterface::class)
+            ->setFactory(RequestMappingLifecycleHook::class, [
+                new Reference($this->prefix('instrumentation')),
+                $config->traces,
+                $config->metrics,
+            ]);
+    }
+
+    private function registerInertiaIntegration(): void {
+        $config = $this->config->integrations->inertia;
+        if (
+            !$this->shouldRegister($config)
+            || !interface_exists(InertiaLifecycleHookInterface::class)
+            || !method_exists(Inertia::class, 'setLifecycleHook')
+        ) {
+            return;
+        }
+
+        $this->getContainerBuilder()
+            ->addDefinition($this->prefix('integration.inertia'))
+            ->setType(InertiaLifecycleHookInterface::class)
+            ->setFactory(InertiaLifecycleHook::class, [
+                new Reference($this->prefix('instrumentation')),
+                $config->traces,
+                $config->metrics,
+            ]);
+    }
+
+    private function registerDatabaseIntegration(): void {
+        $config = $this->config->integrations->database;
+        if (
+            !$this->shouldRegister($config)
+            || !interface_exists(DatabaseLifecycleHookInterface::class)
+            || !method_exists(Connection::class, 'setLifecycleHook')
+        ) {
+            return;
+        }
+
+        $this->getContainerBuilder()
+            ->addDefinition($this->prefix('integration.database'))
+            ->setType(DatabaseLifecycleHookInterface::class)
+            ->setFactory(DatabaseLifecycleHook::class, [
+                new Reference($this->prefix('instrumentation')),
+                $config->traces,
+                $config->metrics,
+            ]);
+    }
+
+    private function registerOrmIntegration(): void {
+        $config = $this->config->integrations->orm;
+        if (
+            !$this->shouldRegister($config)
+            || (!$config->mutations && !$config->queries && !$config->hydration)
+            || !interface_exists(ModelLifecycleHookInterface::class)
+            || !method_exists(ModelRepository::class, 'setLifecycleHook')
+        ) {
+            return;
+        }
+
+        $this->getContainerBuilder()
+            ->addDefinition($this->prefix('integration.orm'))
+            ->setType(ModelLifecycleHookInterface::class)
+            ->setFactory(ModelLifecycleHook::class, [
+                new Reference($this->prefix('instrumentation')),
+                $config->traces,
+                $config->metrics,
+                $config->mutations,
+                $config->queries,
+                $config->hydration,
+                $config->modelMetrics,
+            ]);
+    }
+
+    private function wireDatabaseIntegration(): void {
+        $config = $this->config->integrations->database;
+        foreach ($this->serviceDefinitions(Connection::class) as $definition) {
+            $definition->addSetup('setLifecycleHook', [
+                new Reference($this->prefix('integration.database')),
+                $config->traces && $config->includeRawSql,
+            ]);
+        }
     }
 
     /**
