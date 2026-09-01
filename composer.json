@@ -1,0 +1,66 @@
+{
+  "name": "lsr/otel",
+  "description": "OpenTelemetry integration for the Laser framework.",
+  "version": "0.1.0",
+  "repositories": [
+    {
+      "type": "composer",
+      "url": "https://packages.laserliga.cz"
+    }
+  ],
+  "scripts": {
+    "test": "XDEBUG_MODE=coverage ./vendor/bin/phpunit",
+    "phpstan": "./vendor/bin/phpstan",
+    "phpcs": "./vendor/bin/phpcs",
+    "cs": "./vendor/bin/phpcs",
+    "phpcbf": "./vendor/bin/phpcbf",
+    "cbf": "./vendor/bin/phpcbf"
+  },
+  "require-dev": {
+    "roave/security-advisories": "dev-latest",
+    "phpunit/phpunit": "^12|^13",
+    "phpstan/phpstan": "^2.0",
+    "phpstan/extension-installer": "^1.2",
+    "squizlabs/php_codesniffer": "^4"
+  },
+  "autoload": {
+    "psr-4": {
+      "Lsr\\Otel\\": "src/"
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "Tests\\": "tests/"
+    }
+  },
+  "authors": [
+    {
+      "name": "Tomáš Vojík",
+      "email": "vojik@wboy.cz"
+    }
+  ],
+  "minimum-stability": "stable",
+  "require": {
+    "php": ">=8.4",
+    "guzzlehttp/guzzle": "^7.9",
+    "open-telemetry/api": "^1.10",
+    "open-telemetry/exporter-otlp": "^1.4",
+    "open-telemetry/sdk": "^1.15"
+  },
+  "suggest": {
+    "ext-opentelemetry": "Enables hook-based automatic instrumentation.",
+    "open-telemetry/opentelemetry-auto-psr3": "Injects trace context into PSR-3 logs or exports them as OpenTelemetry logs.",
+    "open-telemetry/sdk-configuration": "Loads declarative OpenTelemetry SDK configuration.",
+    "open-telemetry/transport-grpc": "Publishes OTLP over gRPC instead of the bundled HTTP transport."
+  },
+  "config": {
+    "allow-plugins": {
+      "phpstan/extension-installer": true
+    }
+  },
+  "extra": {
+    "branch-alias": {
+      "v0.1": "0.1.x-dev"
+    }
+  }
+}

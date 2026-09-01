@@ -1,0 +1,13 @@
+composer.phar
+/vendor/
+.idea
+*.iml
+.DS_Store
+tests/tmp
+tests/logs
+*.cache
+build
+docs
+temp/
+tmp/
+*.lock
