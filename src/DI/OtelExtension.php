@@ -36,6 +36,7 @@ use Lsr\Otel\Bridge\RoadRunner\PeriodicWorkerLifecycleHook;
 use Lsr\Otel\Bridge\RoadRunner\TaskConsumerLifecycleHook;
 use Lsr\Otel\Bridge\RoadRunner\TaskProducerLifecycleHook;
 use Lsr\Otel\Bridge\Scheduler\SchedulerLifecycleHook;
+use Lsr\Otel\GlobalSdkRegistration;
 use Lsr\Otel\InstrumentationRegistry;
 use Lsr\Otel\Metrics;
 use Lsr\Otel\Lifecycle\TelemetryLifecycle;
@@ -74,6 +75,7 @@ use Symfony\Component\EventDispatcher\EventSubscriberInterface;
  * @property-read object{
  *     enabled: bool,
  *     autoShutdown: bool,
+ *     registerGlobal: bool,
  *     applicationInstrumentation: object{name: ?string, version: ?string},
  *     integrations: object{
  *         core: object{enabled: bool, traces: bool, metrics: bool},
@@ -111,6 +113,7 @@ final class OtelExtension extends CompilerExtension
         return Expect::structure([
             'enabled' => Expect::bool(true),
             'autoShutdown' => Expect::bool(true),
+            'registerGlobal' => Expect::bool(true),
             'applicationInstrumentation' => Expect::structure([
                 'name' => Expect::string()->nullable()->default(null),
                 'version' => Expect::string()->nullable()->default(null),
@@ -182,18 +185,31 @@ final class OtelExtension extends CompilerExtension
             ->setType(TextMapPropagatorInterface::class)
             ->setFactory([$providerFactory, 'createPropagator']);
 
-        $builder->addDefinition($this->prefix('sdk'))
+        $sdk = $builder->addDefinition($this->prefix('sdk'))
             ->setType(Sdk::class)
             ->setFactory(
                 [$providerFactory, 'createSdk'],
                 [$tracerProvider, $meterProvider, $loggerProvider, $propagator],
             );
 
+        $globalSdkRegistration = $builder->addDefinition($this->prefix('globalSdkRegistration'))
+            ->setType(GlobalSdkRegistration::class)
+            ->setFactory(
+                GlobalSdkRegistration::class,
+                [$sdk, $this->config->enabled && $this->config->registerGlobal],
+            );
+
         $builder->addDefinition($this->prefix('lifecycle'))
             ->setType(TelemetryLifecycleInterface::class)
             ->setFactory(
                 TelemetryLifecycle::class,
-                [$tracerProvider, $meterProvider, $loggerProvider, $this->config->autoShutdown],
+                [
+                    $tracerProvider,
+                    $meterProvider,
+                    $loggerProvider,
+                    $this->config->autoShutdown,
+                    $globalSdkRegistration,
+                ],
             );
 
         $builder->addDefinition($this->prefix('instrumentation'))

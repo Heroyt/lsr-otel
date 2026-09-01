@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\DI;
 
 use Lsr\Otel\DI\OtelExtension;
+use Lsr\Otel\GlobalSdkRegistration;
 use Lsr\Otel\InstrumentationRegistry;
 use Lsr\Otel\Lifecycle\TelemetryLifecycleInterface;
 use Lsr\Otel\Metrics;
@@ -68,6 +69,10 @@ final class OtelExtensionTest extends TestCase
         self::assertSame(
             $container->getByType(TelemetryLifecycleInterface::class),
             $container->getService('otel.lifecycle'),
+        );
+        self::assertSame(
+            $container->getByType(GlobalSdkRegistration::class),
+            $container->getService('otel.globalSdkRegistration'),
         );
         self::assertSame(
             $container->getByType(InstrumentationRegistry::class),

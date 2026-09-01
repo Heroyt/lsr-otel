@@ -21,7 +21,9 @@
     "phpunit/phpunit": "^12|^13",
     "phpstan/phpstan": "^2.0",
     "phpstan/extension-installer": "^1.2",
-    "squizlabs/php_codesniffer": "^4"
+    "squizlabs/php_codesniffer": "^4",
+    "lsr/logging": "^0.3.2",
+    "open-telemetry/opentelemetry-auto-psr3": "^0.3"
   },
   "autoload": {
     "psr-4": {

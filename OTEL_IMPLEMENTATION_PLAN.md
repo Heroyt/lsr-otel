@@ -77,14 +77,25 @@ Sources:
 
 The SDK has a stable logger provider and log record processors. Batch log processing defaults observed in source are a 2,048-record queue, 1-second scheduled delay, 30-second export timeout, and 512-record batch.
 
-The first integration choice should be the official PSR-3 auto-instrumentation:
+Use the official PSR-3 auto-instrumentation with `lsr/logging:^0.3.2`:
 
-- `inject` mode keeps the existing logger output and adds active trace/span correlation to context.
-- `export` mode converts PSR-3 calls into OTEL log records.
+```shell
+composer require open-telemetry/opentelemetry-auto-psr3:^0.3
+```
 
-That package requires `ext-opentelemetry`, so it remains optional. If deployments cannot install the extension, add one extension-free PSR-3 bridge in `lsr/otel` against the official logger provider. Do not put OTEL dependencies into `lsr/logging`, and never enable automatic export plus a manual bridge together.
+The package requires `ext-opentelemetry` and reads `OTEL_PHP_PSR3_MODE` before Composer autoload:
 
-SDK-internal diagnostics must not be sent through a PSR-3 path that recursively generates new OTEL records. Configure the SDK diagnostic destination independently.
+- `inject` keeps the existing logger output and adds the active `trace_id` and `span_id` to context.
+- `export` keeps the existing logger output and also emits one OTEL log record through the logger provider registered
+  by `lsr/otel`.
+
+`lsr/otel` owns and globally registers its SDK by default. Do not enable a second automatic SDK bootstrap. If another
+bootstrap intentionally owns the global providers, set `otel.registerGlobal: false`; otherwise conflicting providers
+fail container initialization instead of silently splitting telemetry between SDKs. Never enable automatic export plus
+a manual PSR-3 bridge together.
+
+SDK-internal diagnostics must not use a PSR-3 path that recursively generates new OTEL records. Configure the SDK
+diagnostic destination independently.
 
 Sources:
 
@@ -158,7 +169,7 @@ Sources:
 | `lsr/orm` | Model mutation methods, query entry points, and row hydration | Internal spans/duration, operation type, outcome, model class, result count | Add a fail-open lifecycle hook. Activate each ORM span so DB spans nest beneath it. Mutation and query capture default on; high-volume per-model hydration defaults off. |
 | `lsr/cache` | `Cache::load()` / `bulkLoad()` and generator fallback | Hit/miss/load counters, operation duration, generator failure | Instrument high-level cache operations to avoid duplicate Redis spans. Use per-operation/per-request instruments; current static cumulative counters are unsafe labels for RR request metrics. |
 | `lsr/console` | Symfony Console `COMMAND`, `ERROR`, `TERMINATE` events; `setAutoExit(false)` | Command span, command name, exit code, exception | Register an event dispatcher/listeners or wrap `Application::run()`. Explicitly flush because auto-exit is disabled. |
-| `lsr/logging` | PSR-3 `Logger::log()` | Trace correlation and OTEL log records | Finish PSR-3-compatible logger refactor. Prefer official optional PSR-3 instrumentation; keep SDK dependency in `lsr/otel`. |
+| `lsr/logging` | PSR-3 `Logger::log()` | Trace correlation and OTEL log records | Use `lsr/logging:^0.3.2` with the official optional PSR-3 instrumentation; keep SDK dependencies and global provider ownership in `lsr/otel`. |
 
 ### Duplicate-instrumentation rule
 
@@ -177,11 +188,11 @@ The logger refactor is separately specified in [`../lsr-logger/LOGGER_UPDATE_PLA
 
 Key decisions:
 
-- Complete the disconnected formatter/storage work behind the existing API in a compatible `lsr/logging:0.3.x` release.
+- Use the completed formatter/storage API from the compatible `lsr/logging:0.3.x` line.
 - Preserve the legacy constructor, `exception()`, `logDb()`, default filenames, default text output, and exported formatter/storage signatures throughout `0.3.x`.
 - Keep `lsr/logging` free of SDK dependencies.
-- Repair PHPUnit discovery before implementation; the current PHPUnit 12 configuration executes zero tests while PHPStan passes.
-- Fix daily rollover, rotation, context mutation, and serialization fallback without forcing consumer migration.
+- Keep PHPUnit discovery compatible with supported PHPUnit versions so the logger contract suite executes.
+- Preserve daily rollover, rotation, context immutability, and serialization fallback without forcing consumer migration.
 - Add DI and narrow logger interfaces incrementally; migrate direct construction one application at a time.
 - Keep Dibi translation operational while ownership moves to `lsr/db`.
 - Treat a clean `0.4` removal release as optional follow-up after known consumers have migrated, not as an OTEL prerequisite.
@@ -283,6 +294,7 @@ metrics can be disabled independently within it:
 otel:
     enabled: true
     autoShutdown: true
+    registerGlobal: true
 
     applicationInstrumentation:
         name: heroyt/laser-arena-control
@@ -327,9 +339,11 @@ otel:
             modelMetrics: false
 ```
 
-`otel.enabled: false` keeps the provider/lifecycle no-op behavior and registers no framework adapters. An integration is
-registered only when it is enabled and its owning package is installed. The extension must not require application
-config changes in `lsr`, `roadrunner`, `console`, or `cqrs` sections.
+`otel.enabled: false` keeps the provider/lifecycle no-op behavior, does not register global providers, and registers no
+framework adapters. `otel.registerGlobal: false` leaves provider ownership to another SDK bootstrap while keeping the
+LSR provider services available. An integration is registered only when it is enabled and its owning package is
+installed. The extension does not require application config changes in `lsr`, `roadrunner`, `console`, or `cqrs`
+sections.
 
 When `applicationInstrumentation.name` is configured, the extension registers autowireable
 `Lsr\Otel\Tracing` and `Lsr\Otel\Metrics` modules. Both remain available through no-op providers when

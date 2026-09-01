@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Lsr\Otel\Lifecycle;
 
+use Lsr\Otel\GlobalSdkRegistration;
 use OpenTelemetry\SDK\Common\Util\ShutdownHandler;
 use OpenTelemetry\SDK\Logs\LoggerProviderInterface;
 use OpenTelemetry\SDK\Metrics\MeterProviderInterface;
@@ -19,6 +20,7 @@ final class TelemetryLifecycle implements TelemetryLifecycleInterface
         private readonly MeterProviderInterface $meterProvider,
         private readonly LoggerProviderInterface $loggerProvider,
         bool $autoShutdown = true,
+        private readonly ?GlobalSdkRegistration $globalSdkRegistration = null,
     ) {
         if ($autoShutdown) {
             ShutdownHandler::register($this->shutdown(...));
@@ -42,11 +44,14 @@ final class TelemetryLifecycle implements TelemetryLifecycleInterface
             return $this->shutdownResult;
         }
 
-        return $this->shutdownResult = $this->attemptAll(
+        $this->globalSdkRegistration?->detach();
+        $this->shutdownResult = $this->attemptAll(
             $this->tracerProvider->shutdown(...),
             $this->meterProvider->shutdown(...),
             $this->loggerProvider->shutdown(...),
         );
+
+        return $this->shutdownResult;
     }
 
     private function attemptAll(callable ...$operations): bool {
