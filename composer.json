@@ -42,6 +42,7 @@
   "minimum-stability": "stable",
   "require": {
     "php": ">=8.4",
+    "nette/di": "^3.2",
     "guzzlehttp/guzzle": "^7.9",
     "open-telemetry/api": "^1.10",
     "open-telemetry/exporter-otlp": "^1.4",
