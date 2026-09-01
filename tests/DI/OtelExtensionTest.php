@@ -63,13 +63,13 @@ final class OtelExtensionTest extends TestCase
         self::assertSame($meterProvider, $sdk->getMeterProvider());
         self::assertSame($loggerProvider, $sdk->getLoggerProvider());
         self::assertSame($propagator, $sdk->getPropagator());
-        self::assertInstanceOf(
-            TelemetryLifecycleInterface::class,
+        self::assertSame(
             $container->getByType(TelemetryLifecycleInterface::class),
+            $container->getService('otel.lifecycle'),
         );
-        self::assertInstanceOf(
-            InstrumentationRegistry::class,
+        self::assertSame(
             $container->getByType(InstrumentationRegistry::class),
+            $container->getService('otel.instrumentation'),
         );
     }
 }
