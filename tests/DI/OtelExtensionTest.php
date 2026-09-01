@@ -7,6 +7,8 @@ namespace Tests\DI;
 use Lsr\Otel\DI\OtelExtension;
 use Lsr\Otel\InstrumentationRegistry;
 use Lsr\Otel\Lifecycle\TelemetryLifecycleInterface;
+use Lsr\Otel\Metrics;
+use Lsr\Otel\Tracing;
 use Nette\DI\Compiler;
 use Nette\DI\Container;
 use Nette\DI\ContainerLoader;
@@ -71,5 +73,33 @@ final class OtelExtensionTest extends TestCase
             $container->getByType(InstrumentationRegistry::class),
             $container->getService('otel.instrumentation'),
         );
+    }
+
+    public function testRegistersConfiguredApplicationInstrumentationWhenTelemetryIsDisabled(): void {
+        $loader = new ContainerLoader($this->directory, true);
+        /** @var class-string<Container> $containerClass */
+        $containerClass = $loader->load(function (Compiler $compiler): ?string {
+            $compiler->addExtension('otel', new OtelExtension());
+            $compiler->addConfig([
+                'otel' => [
+                    'enabled' => false,
+                    'autoShutdown' => false,
+                    'applicationInstrumentation' => [
+                        'name' => 'heroyt/laser-arena-control',
+                        'version' => '0.5.1',
+                    ],
+                ],
+            ]);
+
+            return null;
+        });
+        $container = new $containerClass();
+
+        $tracing = $container->getByType(Tracing::class);
+        self::assertSame('completed', $tracing->trace('operation', static fn(): string => 'completed'));
+        self::assertSame($tracing, $container->getService('otel.tracing'));
+        $metrics = $container->getByType(Metrics::class);
+        $metrics->counter('operations')->add();
+        self::assertSame($metrics, $container->getService('otel.metrics'));
     }
 }

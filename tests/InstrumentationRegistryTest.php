@@ -5,8 +5,11 @@ declare(strict_types=1);
 namespace Tests;
 
 use InvalidArgumentException;
+use LogicException;
 use Lsr\Otel\InstrumentationRegistry;
 use Lsr\Otel\Lifecycle\TelemetryLifecycle;
+use Lsr\Otel\Metrics;
+use Lsr\Otel\Tracing;
 use OpenTelemetry\SDK\Logs\Exporter\InMemoryExporter as InMemoryLogExporter;
 use OpenTelemetry\SDK\Logs\LoggerProvider;
 use OpenTelemetry\SDK\Logs\Processor\SimpleLogRecordProcessor;
@@ -93,7 +96,7 @@ final class InstrumentationRegistryTest extends TestCase
         self::assertSame($spans[0]->getSpanId(), $logs[0]->getSpanContext()?->getSpanId());
     }
 
-    public function testRejectsNonLsrInstrumentationNames(): void {
+    public function testAcceptsComposerNamesAndRejectsInvalidNames(): void {
         $factory = new \Lsr\Otel\ProviderFactory(false);
         $resource = $factory->createResource();
         $meterProvider = $factory->createMeterProvider($resource);
@@ -102,6 +105,19 @@ final class InstrumentationRegistryTest extends TestCase
             $meterProvider,
             $factory->createLoggerProvider($meterProvider, $resource),
         );
+
+        self::assertInstanceOf(Tracing::class, $registry->tracing('vendor/foo--bar'));
+        $metrics = $registry->metrics('vendor/foo--bar');
+        self::assertInstanceOf(Metrics::class, $metrics);
+        self::assertSame($metrics, $registry->metrics('vendor/foo--bar'));
+        self::assertNotSame($metrics, $registry->metrics('vendor/foo--bar', '1.0.0'));
+        $metrics->counter('operations');
+        try {
+            $registry->metrics('vendor/foo--bar')->histogram('operations');
+            self::fail('Separate metrics modules were created for one instrumentation scope.');
+        } catch (LogicException) {
+            self::addToAssertionCount(1);
+        }
 
         $this->expectException(InvalidArgumentException::class);
         $registry->tracer('application');
