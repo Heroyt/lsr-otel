@@ -252,6 +252,97 @@ Key decisions:
 - Remove the path repository, install from `https://packages.laserliga.cz`, and repeat the smoke scenario.
 - Adopt in the second app independently after its constraints and process model are checked.
 
+## Lifecycle hooks, framework metrics, and DI ownership
+
+The framework packages expose typed lifecycle seams but never register OpenTelemetry adapters themselves. The
+`lsr/otel` extension owns adapter definitions and attaches them to compatible framework definitions during container
+compilation. Disabling an integration therefore removes both its adapter and its hook wiring; the framework package
+continues through its existing no-hook path.
+
+The lifecycle interfaces remain free of OpenTelemetry types:
+
+- `lsr/core`: HTTP request begin, exception recording, and completion with the final response.
+- `lsr/roadrunner`: received-task, task-dispatch, and worker-iteration lifecycles. RoadRunner HTTP reuses the core HTTP
+  lifecycle.
+- `lsr/cqrs`: synchronous command dispatch begin, exception recording, and completion.
+- Symfony Console: the standard `COMMAND`, `ERROR`, and `TERMINATE` events; no LSR duplicate.
+
+Each scoped lifecycle has three invariants:
+
+1. completion is idempotent;
+2. scope/context cleanup runs from `finally`;
+3. hook failures cannot replace an application response, exception, task outcome, or command exit code.
+
+### DI configuration
+
+All installed integrations are enabled by default. Every integration can be disabled independently, and traces and
+metrics can be disabled independently within it:
+
+```neon
+otel:
+    enabled: true
+    autoShutdown: true
+
+    integrations:
+        core:
+            enabled: true
+            traces: true
+            metrics: true
+
+        roadrunner:
+            enabled: true
+            traces: true
+            metrics: true
+            flushEvery: 100
+            flushInterval: 10.0
+
+        console:
+            enabled: true
+            traces: true
+            metrics: true
+
+        cqrs:
+            enabled: true
+            traces: true
+            metrics: true
+```
+
+`otel.enabled: false` keeps the provider/lifecycle no-op behavior and registers no framework adapters. An integration is
+registered only when it is enabled and its owning package is installed. The extension must not require application
+config changes in `lsr`, `roadrunner`, `console`, or `cqrs` sections.
+
+RoadRunner flush thresholds are framework-specific configuration because the SDK does not own worker iteration
+boundaries. Standard provider, exporter, sampler, resource, and OTLP configuration remains owned by the standard
+`OTEL_*` variables.
+
+### Initial framework metrics
+
+The first adapters record low-cardinality duration/count measurements at the same lifecycle seams as traces:
+
+| Instrument | Type/unit | Required attributes |
+| --- | --- | --- |
+| `http.server.request.duration` | histogram, seconds | method, route when known, response status |
+| `lsr.roadrunner.job.duration` | histogram, seconds | task name, queue, outcome |
+| `lsr.roadrunner.jobs` | counter, jobs | task name, queue, outcome |
+| `lsr.roadrunner.task.publish.duration` | histogram, seconds | task name, queue, outcome |
+| `lsr.console.command.duration` | histogram, seconds | command name, exit-code class |
+| `lsr.console.commands` | counter, commands | command name, outcome |
+| `lsr.cqrs.command.duration` | histogram, seconds | shortened command class, outcome |
+| `lsr.cqrs.commands` | counter, commands | shortened command class, outcome |
+
+No metric contains raw request targets, task payloads, command arguments, SQL, cache keys, exception messages, user
+identifiers, or trace/request identifiers. Histogram counts already provide request/operation counts, so no duplicate
+HTTP request counter is added.
+
+### Package compatibility
+
+Framework wiring is additive: optional lifecycle properties/setters and new interfaces only. Existing constructors and
+configuration remain valid. `lsr/otel` attaches hooks with Nette definition setup calls so application subclasses, such
+as LaserArenaControl's RoadRunner HTTP worker, do not need to forward new constructor arguments.
+
+The core hook must be released on both the maintained `0.3` line used by LaserArenaControl/LaserLiga and the current
+`0.4` line. RoadRunner and CQRS hooks remain compatible additions to their current `0.1` lines.
+
 ## Validation strategy
 
 ### Package tests
