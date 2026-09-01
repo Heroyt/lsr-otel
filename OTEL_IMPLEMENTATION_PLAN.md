@@ -155,6 +155,7 @@ Sources:
 | `lsr/roadrunner` | `JobsWorker::handleTask()` | Consumer span, queue/task identity, ack/nack result, processing duration | Extract headers before processing; end/detach for success, exception, ack, and nack paths. Flush before worker/task completion according to policy. |
 | `lsr/cqrs` | `CommandBus::dispatch()` and handler resolution | Command span, command/handler class, resolution/handler errors | Start before resolution and end after handler in `finally`. Async context remains transport-owned; do not add OTEL fields to `CommandInterface`. |
 | `lsr/db` | Dibi `Connection::$onEvent` events after connect/query/transaction | Client spans/duration, operation type, errors, affected row count | Add a first-party Dibi event listener alongside logging. Avoid raw SQL and bound values by default. Move Dibi-specific logging translation out of `lsr/logging`. |
+| `lsr/orm` | Model mutation methods, query entry points, and row hydration | Internal spans/duration, operation type, outcome, model class, result count | Add a fail-open lifecycle hook. Activate each ORM span so DB spans nest beneath it. Mutation and query capture default on; high-volume per-model hydration defaults off. |
 | `lsr/cache` | `Cache::load()` / `bulkLoad()` and generator fallback | Hit/miss/load counters, operation duration, generator failure | Instrument high-level cache operations to avoid duplicate Redis spans. Use per-operation/per-request instruments; current static cumulative counters are unsafe labels for RR request metrics. |
 | `lsr/console` | Symfony Console `COMMAND`, `ERROR`, `TERMINATE` events; `setAutoExit(false)` | Command span, command name, exit code, exception | Register an event dispatcher/listeners or wrap `Application::run()`. Explicitly flush because auto-exit is disabled. |
 | `lsr/logging` | PSR-3 `Logger::log()` | Trace correlation and OTEL log records | Finish PSR-3-compatible logger refactor. Prefer official optional PSR-3 instrumentation; keep SDK dependency in `lsr/otel`. |
@@ -165,10 +166,10 @@ Use first-party LSR hooks when they add framework semantics unavailable to a ven
 
 ### Attribute and cardinality rules
 
-- Route templates, command classes, handler classes, cache operation names, queue names, and DB operation types are bounded enough for span attributes.
-- Player IDs, game IDs, cache keys, raw URL paths, raw SQL, serialized commands, and exception messages must not become metric labels.
-- SQL statements, HTTP headers, request bodies, baggage, and logger context may contain credentials or personal data; collection is opt-in and redacted.
-- Metrics use low-cardinality dimensions. Detailed identifiers belong in traces/logs only when policy permits.
+- Route templates, command classes, handler classes, cache operation names, queue names, DB operation types, and ORM operation types are bounded enough for metric attributes.
+- Player IDs, game IDs, cache keys, model IDs, model field values, raw URL paths, raw SQL, serialized commands, and exception messages must not become metric labels.
+- SQL statements, HTTP headers, request bodies, baggage, and logger context may contain credentials or personal data; collection is opt-in. `integrations.database.includeRawSql` deliberately exports unredacted SQL only to traces and remains disabled by default.
+- Metrics use low-cardinality dimensions. ORM model classes are always trace attributes and become metric attributes only when `integrations.orm.modelMetrics` is enabled.
 
 ## Logger package update
 
@@ -283,6 +284,10 @@ otel:
     enabled: true
     autoShutdown: true
 
+    applicationInstrumentation:
+        name: heroyt/laser-arena-control
+        version: 0.5.1
+
     integrations:
         core:
             enabled: true
@@ -305,11 +310,52 @@ otel:
             enabled: true
             traces: true
             metrics: true
+
+        database:
+            enabled: true
+            traces: true
+            metrics: true
+            includeRawSql: false
+
+        orm:
+            enabled: true
+            traces: true
+            metrics: true
+            mutations: true
+            queries: true
+            hydration: false
+            modelMetrics: false
 ```
 
 `otel.enabled: false` keeps the provider/lifecycle no-op behavior and registers no framework adapters. An integration is
 registered only when it is enabled and its owning package is installed. The extension must not require application
 config changes in `lsr`, `roadrunner`, `console`, or `cqrs` sections.
+
+When `applicationInstrumentation.name` is configured, the extension registers autowireable
+`Lsr\Otel\Tracing` and `Lsr\Otel\Metrics` modules. Both remain available through no-op providers when
+`otel.enabled` is false:
+
+```php
+return $this->tracing->trace(
+    'result.import',
+    fn(): Result => $this->importResult(),
+    ['result.format' => 'lasermaxx'],
+);
+```
+
+```php
+$this->metrics
+    ->counter('result.imports', '{result}', 'Imported result files.')
+    ->add(attributes: ['result.outcome' => 'success']);
+$this->metrics
+    ->histogram('result.import.duration', 's', 'Result import duration.')
+    ->record($duration, ['result.outcome' => 'success']);
+```
+
+The tracing module activates the new span, records and rethrows callback exceptions, and always detaches and ends the
+span. The metrics module caches instruments by name and rejects conflicting type, unit, or description declarations.
+Instrumentation and recording failures degrade to no-op behavior. `InstrumentationRegistry::tracing()` and
+`InstrumentationRegistry::metrics()` provide the same modules for additional Composer-style instrumentation scopes.
 
 RoadRunner flush thresholds are framework-specific configuration because the SDK does not own worker iteration
 boundaries. Standard provider, exporter, sampler, resource, and OTLP configuration remains owned by the standard
@@ -329,10 +375,13 @@ The first adapters record low-cardinality duration/count measurements at the sam
 | `lsr.console.commands` | counter, commands | command name, outcome |
 | `lsr.cqrs.command.duration` | histogram, seconds | shortened command class, outcome |
 | `lsr.cqrs.commands` | counter, commands | shortened command class, outcome |
+| `lsr.orm.operation.duration` | histogram, seconds | category, operation, outcome; model class when opted in |
+| `lsr.orm.operations` | counter, operations | category, operation, outcome; model class when opted in |
 
-No metric contains raw request targets, task payloads, command arguments, SQL, cache keys, exception messages, user
-identifiers, or trace/request identifiers. Histogram counts already provide request/operation counts, so no duplicate
-HTTP request counter is added.
+No metric contains raw request targets, task payloads, command arguments, SQL, cache keys, model IDs, model field values,
+exception messages, user identifiers, or trace/request identifiers. ORM model classes are excluded unless
+`integrations.orm.modelMetrics` is explicitly enabled. Histogram counts already provide request/operation counts, so no
+duplicate HTTP request counter is added.
 
 ### Package compatibility
 
