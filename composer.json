@@ -50,9 +50,14 @@
   },
   "suggest": {
     "ext-opentelemetry": "Enables hook-based automatic instrumentation.",
+    "lsr/core": "Enables FPM and RoadRunner HTTP lifecycle instrumentation.",
+    "lsr/cqrs": "Enables synchronous command instrumentation.",
+    "lsr/roadrunner": "Enables RoadRunner worker and task instrumentation.",
     "open-telemetry/opentelemetry-auto-psr3": "Injects trace context into PSR-3 logs or exports them as OpenTelemetry logs.",
     "open-telemetry/sdk-configuration": "Loads declarative OpenTelemetry SDK configuration.",
-    "open-telemetry/transport-grpc": "Publishes OTLP over gRPC instead of the bundled HTTP transport."
+    "open-telemetry/transport-grpc": "Publishes OTLP over gRPC instead of the bundled HTTP transport.",
+    "symfony/console": "Enables command lifecycle instrumentation.",
+    "symfony/event-dispatcher": "Provides the dispatcher used by command lifecycle instrumentation."
   },
   "config": {
     "allow-plugins": {
