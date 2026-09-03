@@ -158,7 +158,7 @@ Sources:
 | Owning package | Existing seam | Useful telemetry | Required change |
 | --- | --- | --- | --- |
 | `lsr/core` | `FpmHandler::run()` / `finishRequest()` and configured `AsyncHandlerInterface` handlers | Root HTTP server span, response status, exception, post-response flush | Add an OTEL request adapter around request handling; register a bounded post-response flush handler. Ensure cleanup still runs if response sending fails. |
-| `lsr/core` | `App::run()`, route resolution, `RouteHandler` | Rename/enrich root span with matched route/controller after routing | Add attributes to the active span; do not create a second server span. Change `App::getLogger()` to resolve DI rather than construct `Logger` privately. |
+| `lsr/core` | `App::run()`, route resolution, `RouteHandler` | Nested routing, dispatch, middleware, DI resolution, argument mapping, controller initialization, and action spans | Add one typed request-operation lifecycle seam. Activate child spans around each phase so DB/cache/request spans nest under the work that caused them; enrich the root span with the matched route. |
 | `lsr/request` | PSR request decorator and immutable attributes | Extract inbound W3C context; attach request metadata without coupling request DTOs to OTEL | Keep propagator work in the runtime adapter; avoid telemetry properties on request domain objects. |
 | `lsr/routing` | Router match and route metadata | `http.route`, controller/action, not-found/method-not-allowed outcome | Enrich the existing server span after a route matches. Route templates, never raw high-cardinality paths, identify operations. |
 | `lsr/roadrunner` | `HttpWorker::run()` request loop | Server span per request, status/error, request duration, context isolation | Extract/start/activate before dispatch; end/detach in `finally`; exercise two sequential requests; flush by policy, never shutdown per request. |
@@ -241,7 +241,7 @@ Key decisions:
 
 ### Phase 3: framework semantics
 
-- Add route/controller enrichment without duplicate server spans.
+- Add nested route, middleware, controller resolution, action-argument resolution, controller initialization, and controller action spans without duplicating the server span.
 - Add CQRS dispatch spans.
 - Add Dibi event spans and safe DB attributes.
 - Add cache hit/miss/load metrics and high-level spans.
@@ -412,7 +412,7 @@ The core hook must be released on both the maintained `0.3` line used by LaserAr
 
 Use official in-memory exporters/readers to assert observable signal data rather than implementation calls:
 
-- Trace: parent/child relation, route naming, status/error, exception event, propagated parent.
+- Trace: parent/child relation, route naming, nested Core request phases, status/error, exception event, propagated parent.
 - Metrics: counter/histogram values, attributes, collection/force-flush behavior, no request-identity labels.
 - Logs: severity/body/attributes, exception mapping, active trace/span correlation.
 - Lifecycle: every provider gets force-flush/shutdown even if another fails; shutdown idempotency.
