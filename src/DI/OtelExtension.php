@@ -412,6 +412,7 @@ final class OtelExtension extends CompilerExtension
         if (interface_exists(RequestLifecycleHookInterface::class)) {
             $builder->addDefinition($this->prefix('integration.core.http'))
                 ->setType(RequestLifecycleHookInterface::class)
+                ->setAutowired(false)
                 ->setFactory(HttpServerLifecycleHook::class, [
                     new Reference($this->prefix('instrumentation')),
                     new Reference($this->prefix('propagator')),
@@ -453,6 +454,7 @@ final class OtelExtension extends CompilerExtension
         if (interface_exists(RequestLifecycleHookInterface::class)) {
             $builder->addDefinition($this->prefix('integration.roadrunner.http'))
                 ->setType(RequestLifecycleHookInterface::class)
+                ->setAutowired(false)
                 ->setFactory(HttpServerLifecycleHook::class, [
                     $instrumentation,
                     $propagator,
