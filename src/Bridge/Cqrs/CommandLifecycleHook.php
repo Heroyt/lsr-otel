@@ -8,6 +8,7 @@ use Lsr\CQRS\CommandInterface;
 use Lsr\CQRS\Lifecycle\CommandLifecycleHookInterface;
 use Lsr\CQRS\Lifecycle\CommandLifecycleScopeInterface;
 use Lsr\Otel\InstrumentationRegistry;
+use Lsr\Otel\Internal\DurationHistogram;
 use OpenTelemetry\API\Metrics\CounterInterface;
 use OpenTelemetry\API\Metrics\HistogramInterface;
 use OpenTelemetry\API\Trace\SpanKind;
@@ -27,9 +28,9 @@ final readonly class CommandLifecycleHook implements CommandLifecycleHookInterfa
     ) {
         $this->tracer = $traces ? $instrumentation->tracer('lsr/cqrs') : null;
         $meter = $metrics ? $instrumentation->meter('lsr/cqrs') : null;
-        $this->duration = $meter?->createHistogram(
+        $this->duration = DurationHistogram::create(
+            $meter,
             'lsr.cqrs.command.duration',
-            's',
             'Duration of synchronous CQRS command dispatch.',
         );
         $this->count = $meter?->createCounter(

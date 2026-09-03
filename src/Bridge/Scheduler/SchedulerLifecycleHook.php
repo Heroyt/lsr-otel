@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Lsr\Otel\Bridge\Scheduler;
 
 use Lsr\Otel\InstrumentationRegistry;
+use Lsr\Otel\Internal\DurationHistogram;
 use Lsr\Scheduler\Lifecycle\SchedulerLifecycleHookInterface;
 use Lsr\Scheduler\Lifecycle\SchedulerLifecycleScopeInterface;
 use OpenTelemetry\API\Metrics\CounterInterface;
@@ -26,9 +27,9 @@ final readonly class SchedulerLifecycleHook implements SchedulerLifecycleHookInt
     ) {
         $this->tracer = $traces ? $instrumentation->tracer('lsr/scheduler') : null;
         $meter = $metrics ? $instrumentation->meter('lsr/scheduler') : null;
-        $this->duration = $meter?->createHistogram(
+        $this->duration = DurationHistogram::create(
+            $meter,
             'lsr.scheduler.execution.duration',
-            's',
             'Duration of scheduled job and command execution.',
         );
         $this->count = $meter?->createCounter(

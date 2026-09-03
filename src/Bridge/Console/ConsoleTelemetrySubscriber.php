@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Lsr\Otel\Bridge\Console;
 
 use Lsr\Otel\InstrumentationRegistry;
+use Lsr\Otel\Internal\DurationHistogram;
 use Lsr\Otel\Internal\TelemetryOperation;
 use Lsr\Otel\Lifecycle\TelemetryLifecycleInterface;
 use OpenTelemetry\API\Metrics\CounterInterface;
@@ -35,9 +36,9 @@ final class ConsoleTelemetrySubscriber implements EventSubscriberInterface
     ) {
         $this->tracer = $traces ? $instrumentation->tracer('lsr/console') : null;
         $meter = $metrics ? $instrumentation->meter('lsr/console') : null;
-        $this->duration = $meter?->createHistogram(
+        $this->duration = DurationHistogram::create(
+            $meter,
             'lsr.console.command.duration',
-            's',
             'Duration of Symfony Console commands.',
         );
         $this->count = $meter?->createCounter(

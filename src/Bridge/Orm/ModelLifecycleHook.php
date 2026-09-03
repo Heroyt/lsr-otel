@@ -9,6 +9,7 @@ use Lsr\Orm\Lifecycle\ModelLifecycleHookInterface;
 use Lsr\Orm\Lifecycle\ModelLifecycleScopeInterface;
 use Lsr\Orm\Model;
 use Lsr\Otel\InstrumentationRegistry;
+use Lsr\Otel\Internal\DurationHistogram;
 use OpenTelemetry\API\Metrics\CounterInterface;
 use OpenTelemetry\API\Metrics\HistogramInterface;
 use OpenTelemetry\API\Trace\SpanKind;
@@ -32,9 +33,9 @@ final readonly class ModelLifecycleHook implements ModelLifecycleHookInterface
     ) {
         $this->tracer = $traces ? $instrumentation->tracer('lsr/orm') : null;
         $meter = $metrics ? $instrumentation->meter('lsr/orm') : null;
-        $this->duration = $meter?->createHistogram(
+        $this->duration = DurationHistogram::create(
+            $meter,
             'lsr.orm.operation.duration',
-            's',
             'Duration of ORM model lifecycle operations.',
         );
         $this->count = $meter?->createCounter(

@@ -7,6 +7,7 @@ namespace Lsr\Otel\Bridge\Database;
 use Lsr\Db\Lifecycle\DatabaseLifecycleEvent;
 use Lsr\Db\Lifecycle\DatabaseLifecycleHookInterface;
 use Lsr\Otel\InstrumentationRegistry;
+use Lsr\Otel\Internal\DurationHistogram;
 use OpenTelemetry\API\Common\Time\Clock;
 use OpenTelemetry\API\Metrics\CounterInterface;
 use OpenTelemetry\API\Metrics\HistogramInterface;
@@ -29,9 +30,9 @@ final readonly class DatabaseLifecycleHook implements DatabaseLifecycleHookInter
     ) {
         $this->tracer = $traces ? $instrumentation->tracer('lsr/db') : null;
         $meter = $metrics ? $instrumentation->meter('lsr/db') : null;
-        $this->duration = $meter?->createHistogram(
+        $this->duration = DurationHistogram::create(
+            $meter,
             'lsr.db.operation.duration',
-            's',
             'Duration of database operations.',
         );
         $this->count = $meter?->createCounter(

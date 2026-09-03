@@ -7,6 +7,7 @@ namespace Lsr\Otel\Bridge\Cache;
 use Lsr\Caching\Lifecycle\CacheLifecycleHookInterface;
 use Lsr\Caching\Lifecycle\CacheLifecycleScopeInterface;
 use Lsr\Otel\InstrumentationRegistry;
+use Lsr\Otel\Internal\DurationHistogram;
 use OpenTelemetry\API\Metrics\CounterInterface;
 use OpenTelemetry\API\Metrics\HistogramInterface;
 use OpenTelemetry\API\Trace\SpanKind;
@@ -27,9 +28,9 @@ final readonly class CacheLifecycleHook implements CacheLifecycleHookInterface
     ) {
         $this->tracer = $traces ? $instrumentation->tracer('lsr/cache') : null;
         $meter = $metrics ? $instrumentation->meter('lsr/cache') : null;
-        $this->duration = $meter?->createHistogram(
+        $this->duration = DurationHistogram::create(
+            $meter,
             'lsr.cache.operation.duration',
-            's',
             'Duration of cache load operations.',
         );
         $this->operations = $meter?->createCounter(

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Lsr\Otel\Bridge\RoadRunner;
 
 use Lsr\Otel\InstrumentationRegistry;
+use Lsr\Otel\Internal\DurationHistogram;
 use Lsr\Otel\Internal\TelemetryOperation;
 use Lsr\Roadrunner\Lifecycle\TaskDispatchLifecycleHookInterface;
 use Lsr\Roadrunner\Lifecycle\TaskDispatchLifecycleScopeInterface;
@@ -31,9 +32,9 @@ final readonly class TaskProducerLifecycleHook implements TaskDispatchLifecycleH
     ) {
         $this->tracer = $traces ? $instrumentation->tracer('lsr/roadrunner') : null;
         $meter = $metrics ? $instrumentation->meter('lsr/roadrunner') : null;
-        $this->duration = $meter?->createHistogram(
+        $this->duration = DurationHistogram::create(
+            $meter,
             'lsr.roadrunner.task.publish.duration',
-            's',
             'Duration of RoadRunner task publishing.',
         );
         $this->count = $meter?->createCounter(

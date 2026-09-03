@@ -7,6 +7,7 @@ namespace Lsr\Otel\Bridge\Request;
 use Lsr\Core\Requests\Lifecycle\RequestMappingEvent;
 use Lsr\Core\Requests\Lifecycle\RequestMappingLifecycleHookInterface;
 use Lsr\Otel\InstrumentationRegistry;
+use Lsr\Otel\Internal\DurationHistogram;
 use OpenTelemetry\API\Metrics\CounterInterface;
 use OpenTelemetry\API\Metrics\HistogramInterface;
 use OpenTelemetry\API\Trace\Span;
@@ -23,9 +24,9 @@ final readonly class RequestMappingLifecycleHook implements RequestMappingLifecy
         bool $metrics = true,
     ) {
         $meter = $metrics ? $instrumentation->meter('lsr/request') : null;
-        $this->duration = $meter?->createHistogram(
+        $this->duration = DurationHistogram::create(
+            $meter,
             'lsr.request.mapping.duration',
-            's',
             'Duration of request-to-object mapping and validation.',
         );
         $this->count = $meter?->createCounter(

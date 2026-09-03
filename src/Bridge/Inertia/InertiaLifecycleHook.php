@@ -7,6 +7,7 @@ namespace Lsr\Otel\Bridge\Inertia;
 use Lsr\Inertia\Lifecycle\InertiaLifecycleHookInterface;
 use Lsr\Inertia\Lifecycle\InertiaLifecycleScopeInterface;
 use Lsr\Otel\InstrumentationRegistry;
+use Lsr\Otel\Internal\DurationHistogram;
 use OpenTelemetry\API\Metrics\CounterInterface;
 use OpenTelemetry\API\Metrics\HistogramInterface;
 use OpenTelemetry\API\Trace\SpanKind;
@@ -26,9 +27,9 @@ final readonly class InertiaLifecycleHook implements InertiaLifecycleHookInterfa
     ) {
         $this->tracer = $traces ? $instrumentation->tracer('lsr/inertia') : null;
         $meter = $metrics ? $instrumentation->meter('lsr/inertia') : null;
-        $this->duration = $meter?->createHistogram(
+        $this->duration = DurationHistogram::create(
+            $meter,
             'lsr.inertia.render.duration',
-            's',
             'Duration of Inertia prop resolution and response rendering.',
         );
         $this->count = $meter?->createCounter(

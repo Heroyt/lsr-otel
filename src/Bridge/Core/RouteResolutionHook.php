@@ -7,6 +7,7 @@ namespace Lsr\Otel\Bridge\Core;
 use Lsr\Core\Http\Lifecycle\RouteResolutionEvent;
 use Lsr\Core\Http\Lifecycle\RouteResolutionHookInterface;
 use Lsr\Otel\InstrumentationRegistry;
+use Lsr\Otel\Internal\DurationHistogram;
 use OpenTelemetry\API\Metrics\CounterInterface;
 use OpenTelemetry\API\Metrics\HistogramInterface;
 use OpenTelemetry\API\Trace\Span;
@@ -23,9 +24,9 @@ final readonly class RouteResolutionHook implements RouteResolutionHookInterface
         bool $metrics = true,
     ) {
         $meter = $metrics ? $instrumentation->meter('lsr/routing') : null;
-        $this->duration = $meter?->createHistogram(
+        $this->duration = DurationHistogram::create(
+            $meter,
             'lsr.routing.match.duration',
-            's',
             'Duration of HTTP route resolution.',
         );
         $this->count = $meter?->createCounter(

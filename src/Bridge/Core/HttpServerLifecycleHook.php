@@ -7,6 +7,7 @@ namespace Lsr\Otel\Bridge\Core;
 use Lsr\Core\Http\Lifecycle\RequestLifecycleHookInterface;
 use Lsr\Core\Http\Lifecycle\RequestLifecycleScopeInterface;
 use Lsr\Otel\InstrumentationRegistry;
+use Lsr\Otel\Internal\DurationHistogram;
 use OpenTelemetry\API\Metrics\HistogramInterface;
 use OpenTelemetry\API\Trace\SpanKind;
 use OpenTelemetry\API\Trace\TracerInterface;
@@ -29,9 +30,9 @@ final readonly class HttpServerLifecycleHook implements RequestLifecycleHookInte
     ) {
         $this->tracer = $traces ? $instrumentation->tracer($instrumentationName) : null;
         $this->duration = $metrics
-            ? $instrumentation->meter($instrumentationName)->createHistogram(
+            ? DurationHistogram::create(
+                $instrumentation->meter($instrumentationName),
                 'http.server.request.duration',
-                's',
                 'Duration of inbound HTTP requests handled by Laser.',
             )
             : null;
