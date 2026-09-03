@@ -11,7 +11,9 @@ use Lsr\Core\Auth\Lifecycle\AuthLifecycleHookInterface;
 use Lsr\Core\Auth\Services\Auth;
 use Lsr\Core\FpmHandler;
 use Lsr\Core\Http\Lifecycle\RequestLifecycleHookInterface;
+use Lsr\Core\Http\Lifecycle\RequestOperationLifecycleHookInterface;
 use Lsr\Core\Http\Lifecycle\RouteResolutionHookInterface;
+use Lsr\Core\RouteHandler;
 use Lsr\Core\Requests\Lifecycle\RequestMappingLifecycleHookInterface;
 use Lsr\Core\Requests\Validation\RequestValidationMapper;
 use Lsr\Db\Connection;
@@ -26,6 +28,7 @@ use Lsr\CQRS\CommandBus;
 use Lsr\Otel\Bridge\Console\ConsoleTelemetrySubscriber;
 use Lsr\Otel\Bridge\Core\FpmFlushHandler;
 use Lsr\Otel\Bridge\Core\HttpServerLifecycleHook;
+use Lsr\Otel\Bridge\Core\RequestOperationLifecycleHook;
 use Lsr\Otel\Bridge\Cqrs\CommandLifecycleHook;
 use Lsr\Otel\Bridge\Core\RouteResolutionHook;
 use Lsr\Otel\Bridge\Database\DatabaseLifecycleHook;
@@ -254,12 +257,32 @@ final class OtelExtension extends CompilerExtension
             );
         }
 
+        if ($builder->hasDefinition($this->prefix('integration.core.operations'))) {
+            if (method_exists(App::class, 'setRequestOperationLifecycleHook')) {
+                $this->wire(
+                    App::class,
+                    'setRequestOperationLifecycleHook',
+                    $this->prefix('integration.core.operations'),
+                );
+            }
+            if (method_exists(RouteHandler::class, 'setRequestOperationLifecycleHook')) {
+                $this->wire(
+                    RouteHandler::class,
+                    'setRequestOperationLifecycleHook',
+                    $this->prefix('integration.core.operations'),
+                );
+            }
+        }
+
         if ($builder->hasDefinition($this->prefix('integration.roadrunner.http'))) {
             $this->wire(
                 HttpWorker::class,
                 'setRequestLifecycleHook',
                 $this->prefix('integration.roadrunner.http'),
             );
+        }
+
+        if ($builder->hasDefinition($this->prefix('integration.roadrunner.worker'))) {
             $this->wire(
                 HttpWorker::class,
                 'setWorkerLifecycleHook',
@@ -267,14 +290,20 @@ final class OtelExtension extends CompilerExtension
             );
             $this->wire(
                 JobsWorker::class,
-                'setTaskLifecycleHook',
-                $this->prefix('integration.roadrunner.consumer'),
-            );
-            $this->wire(
-                JobsWorker::class,
                 'setWorkerLifecycleHook',
                 $this->prefix('integration.roadrunner.worker'),
             );
+        }
+
+        if ($builder->hasDefinition($this->prefix('integration.roadrunner.consumer'))) {
+            $this->wire(
+                JobsWorker::class,
+                'setTaskLifecycleHook',
+                $this->prefix('integration.roadrunner.consumer'),
+            );
+        }
+
+        if ($builder->hasDefinition($this->prefix('integration.roadrunner.producer'))) {
             $this->wire(
                 TaskProducer::class,
                 'setLifecycleHook',
@@ -375,23 +404,35 @@ final class OtelExtension extends CompilerExtension
 
     private function registerCoreIntegration(): void {
         $config = $this->config->integrations->core;
-        if (!$this->shouldRegister($config) || !interface_exists(RequestLifecycleHookInterface::class)) {
+        if (!$this->shouldRegister($config)) {
             return;
         }
 
         $builder = $this->getContainerBuilder();
-        $builder->addDefinition($this->prefix('integration.core.http'))
-            ->setType(RequestLifecycleHookInterface::class)
-            ->setFactory(HttpServerLifecycleHook::class, [
-                new Reference($this->prefix('instrumentation')),
-                new Reference($this->prefix('propagator')),
-                $config->traces,
-                $config->metrics,
-                'lsr/core',
-            ]);
-        $builder->addDefinition($this->prefix('integration.core.flush'))
-            ->setType(FpmFlushHandler::class)
-            ->setFactory(FpmFlushHandler::class, [new Reference($this->prefix('lifecycle'))]);
+        if (interface_exists(RequestLifecycleHookInterface::class)) {
+            $builder->addDefinition($this->prefix('integration.core.http'))
+                ->setType(RequestLifecycleHookInterface::class)
+                ->setFactory(HttpServerLifecycleHook::class, [
+                    new Reference($this->prefix('instrumentation')),
+                    new Reference($this->prefix('propagator')),
+                    $config->traces,
+                    $config->metrics,
+                    'lsr/core',
+                ]);
+            $builder->addDefinition($this->prefix('integration.core.flush'))
+                ->setType(FpmFlushHandler::class)
+                ->setFactory(FpmFlushHandler::class, [new Reference($this->prefix('lifecycle'))]);
+        }
+
+        if ($config->traces && interface_exists(RequestOperationLifecycleHookInterface::class)) {
+            $builder->addDefinition($this->prefix('integration.core.operations'))
+                ->setType(RequestOperationLifecycleHookInterface::class)
+                ->setFactory(RequestOperationLifecycleHook::class, [
+                    new Reference($this->prefix('instrumentation')),
+                    $this->config->integrations->routing->enabled
+                        && $this->config->integrations->routing->traces,
+                ]);
+        }
     }
 
     private function registerRoadRunnerIntegration(): void {
@@ -409,15 +450,17 @@ final class OtelExtension extends CompilerExtension
         $instrumentation = new Reference($this->prefix('instrumentation'));
         $propagator = new Reference($this->prefix('propagator'));
 
-        $builder->addDefinition($this->prefix('integration.roadrunner.http'))
-            ->setType(RequestLifecycleHookInterface::class)
-            ->setFactory(HttpServerLifecycleHook::class, [
-                $instrumentation,
-                $propagator,
-                $config->traces,
-                $config->metrics,
-                'lsr/roadrunner',
-            ]);
+        if (interface_exists(RequestLifecycleHookInterface::class)) {
+            $builder->addDefinition($this->prefix('integration.roadrunner.http'))
+                ->setType(RequestLifecycleHookInterface::class)
+                ->setFactory(HttpServerLifecycleHook::class, [
+                    $instrumentation,
+                    $propagator,
+                    $config->traces,
+                    $config->metrics,
+                    'lsr/roadrunner',
+                ]);
+        }
         $builder->addDefinition($this->prefix('integration.roadrunner.consumer'))
             ->setType(TaskLifecycleHookInterface::class)
             ->setFactory(TaskConsumerLifecycleHook::class, [
