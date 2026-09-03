@@ -94,7 +94,9 @@ final class OtelSafeIntegrationsTest extends TestCase
     }
 
     protected function tearDown(): void {
-        ModelRepository::setLifecycleHook(null);
+        if (method_exists(ModelRepository::class, 'setLifecycleHook')) {
+            ModelRepository::setLifecycleHook(null);
+        }
         if (isset($this->directory)) {
             FileSystem::delete($this->directory);
         }

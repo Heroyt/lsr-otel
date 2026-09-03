@@ -19,6 +19,7 @@ use Nyholm\Psr7\Response;
 use Nyholm\Psr7\ServerRequest;
 use OpenTelemetry\API\Trace\Propagation\TraceContextPropagator;
 use OpenTelemetry\SDK\Logs\NoopLoggerProvider;
+use OpenTelemetry\SDK\Metrics\Data\Histogram;
 use OpenTelemetry\SDK\Metrics\MeterProvider;
 use OpenTelemetry\SDK\Metrics\MetricExporter\InMemoryExporter as InMemoryMetricExporter;
 use OpenTelemetry\SDK\Metrics\MetricReader\ExportingReader;
@@ -103,9 +104,45 @@ final class FrameworkMetricsTest extends TestCase
         self::assertTrue($meterProvider->forceFlush());
         self::assertCount(5, $spanExporter->getSpans());
 
+        $metrics = $metricExporter->collect();
         $names = [];
-        foreach ($metricExporter->collect() as $metric) {
+        foreach ($metrics as $metric) {
             $names[] = $metric->name;
+            if (!$metric->data instanceof Histogram) {
+                continue;
+            }
+
+            $dataPoints = is_array($metric->data->dataPoints)
+                ? $metric->data->dataPoints
+                : iterator_to_array($metric->data->dataPoints);
+            foreach ($dataPoints as $dataPoint) {
+                self::assertSame(
+                    [
+                        0.001,
+                        0.0025,
+                        0.005,
+                        0.01,
+                        0.025,
+                        0.05,
+                        0.075,
+                        0.1,
+                        0.25,
+                        0.5,
+                        0.75,
+                        1,
+                        2.5,
+                        5,
+                        7.5,
+                        10,
+                        30,
+                        60,
+                        120,
+                        300,
+                    ],
+                    $dataPoint->explicitBounds,
+                    $metric->name,
+                );
+            }
         }
         sort($names);
         self::assertSame(
