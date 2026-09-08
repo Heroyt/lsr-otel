@@ -26,8 +26,8 @@ final readonly class CacheLifecycleHook implements CacheLifecycleHookInterface
         bool $traces = true,
         bool $metrics = true,
     ) {
-        $this->tracer = $traces ? $instrumentation->tracer('lsr/cache') : null;
-        $meter = $metrics ? $instrumentation->meter('lsr/cache') : null;
+        $this->tracer = $traces ? $instrumentation->tracer('lsr/caching') : null;
+        $meter = $metrics ? $instrumentation->meter('lsr/caching') : null;
         $this->duration = DurationHistogram::create(
             $meter,
             'lsr.cache.operation.duration',
