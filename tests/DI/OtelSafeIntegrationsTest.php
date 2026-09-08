@@ -59,7 +59,7 @@ final class OtelSafeIntegrationsTest extends TestCase
         spl_autoload_register(
             static function (string $class) use ($prefixes): void {
                 foreach ($prefixes as $prefix => $directory) {
-                    if (!str_starts_with($class, $prefix)) {
+                    if ( ! str_starts_with($class, $prefix)) {
                         continue;
                     }
                     $file = $directory . str_replace('\\', '/', substr($class, strlen($prefix))) . '.php';
@@ -75,15 +75,15 @@ final class OtelSafeIntegrationsTest extends TestCase
 
     protected function setUp(): void {
         if (
-            !method_exists(Cache::class, 'setLifecycleHook')
-            || !method_exists(App::class, 'setRouteResolutionHook')
-            || !method_exists(SchedulerJobMessageHandler::class, 'setLifecycleHook')
-            || !method_exists(ScheduledCommandMessageHandler::class, 'setLifecycleHook')
-            || !method_exists(Auth::class, 'setLifecycleHook')
-            || !method_exists(RequestValidationMapper::class, 'setLifecycleHook')
-            || !method_exists(Inertia::class, 'setLifecycleHook')
-            || !method_exists(Connection::class, 'setLifecycleHook')
-            || !method_exists(ModelRepository::class, 'setLifecycleHook')
+            ! method_exists(Cache::class, 'setLifecycleHook')
+            || ! method_exists(App::class, 'setRouteResolutionHook')
+            || ! method_exists(SchedulerJobMessageHandler::class, 'setLifecycleHook')
+            || ! method_exists(ScheduledCommandMessageHandler::class, 'setLifecycleHook')
+            || ! method_exists(Auth::class, 'setLifecycleHook')
+            || ! method_exists(RequestValidationMapper::class, 'setLifecycleHook')
+            || ! method_exists(Inertia::class, 'setLifecycleHook')
+            || ! method_exists(Connection::class, 'setLifecycleHook')
+            || ! method_exists(ModelRepository::class, 'setLifecycleHook')
         ) {
             self::markTestSkipped('Local safe integration packages are not available.');
         }
@@ -115,7 +115,7 @@ final class OtelSafeIntegrationsTest extends TestCase
     }
 
     #[DataProvider('disabledIntegrationProvider')]
-    public function testIntegrationsAreEnabledByDefaultAndIndependentlyDisabled(string $disabled): void {
+    public function test_integrations_are_enabled_by_default_and_independently_disabled(string $disabled): void {
         $container = $this->compileContainer($disabled);
 
         self::assertSame(
@@ -157,7 +157,7 @@ final class OtelSafeIntegrationsTest extends TestCase
         );
     }
 
-    public function testRawSqlCaptureIsDisabledByDefaultAndRequiresTraces(): void {
+    public function test_raw_sql_capture_is_disabled_by_default_and_requires_traces(): void {
         $defaultDatabase = $this->compileContainer('cache')->getService('database');
         self::assertFalse($this->databaseIncludesRawSql($defaultDatabase));
 
@@ -171,7 +171,7 @@ final class OtelSafeIntegrationsTest extends TestCase
         self::assertFalse($this->databaseIncludesRawSql($metricsOnlyDatabase));
     }
 
-    public function testOrmGranularityIsConfiguredIndependently(): void {
+    public function test_orm_granularity_is_configured_independently(): void {
         $this->compileContainer('cache', ormConfig: [
             'mutations' => false,
             'queries' => true,
@@ -265,7 +265,7 @@ final class OtelSafeIntegrationsTest extends TestCase
 
     private function property(object $object, string $name): mixed {
         $reflection = new ReflectionClass($object);
-        while (!$reflection->hasProperty($name)) {
+        while ( ! $reflection->hasProperty($name)) {
             $reflection = $reflection->getParentClass();
             if ($reflection === false) {
                 self::fail('Property ' . $name . ' was not found on ' . $object::class . '.');

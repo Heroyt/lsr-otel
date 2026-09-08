@@ -27,9 +27,9 @@ final class OtelCoreOperationsIntegrationTest extends TestCase
 
     protected function setUp(): void {
         if (
-            !class_exists(App::class)
-            || !class_exists(RouteHandler::class)
-            || !interface_exists(RequestOperationLifecycleHookInterface::class)
+            ! class_exists(App::class)
+            || ! class_exists(RouteHandler::class)
+            || ! interface_exists(RequestOperationLifecycleHookInterface::class)
         ) {
             self::markTestSkipped('The compatible lsr/core package is not installed.');
         }
@@ -44,7 +44,7 @@ final class OtelCoreOperationsIntegrationTest extends TestCase
         }
     }
 
-    public function testExtensionWiresOneOperationHookIntoAppAndRouteHandler(): void {
+    public function test_extension_wires_one_operation_hook_into_app_and_route_handler(): void {
         $loader = new ContainerLoader($this->directory, true);
         /** @var class-string<Container> $containerClass */
         $containerClass = $loader->load(function (Compiler $compiler): ?string {
@@ -82,11 +82,11 @@ final class OtelCoreOperationsIntegrationTest extends TestCase
                 ->getValue($container->getService('routeHandler')),
         );
     }
-    public function testCoreAndRoadRunnerHttpHooksAreNotAutowiringCandidates(): void {
+    public function test_core_and_road_runner_http_hooks_are_not_autowiring_candidates(): void {
         if (
-            !interface_exists(TaskLifecycleHookInterface::class)
-            || !interface_exists(TaskDispatchLifecycleHookInterface::class)
-            || !interface_exists(WorkerLifecycleHookInterface::class)
+            ! interface_exists(TaskLifecycleHookInterface::class)
+            || ! interface_exists(TaskDispatchLifecycleHookInterface::class)
+            || ! interface_exists(WorkerLifecycleHookInterface::class)
         ) {
             self::markTestSkipped('The compatible lsr/roadrunner package is not installed.');
         }

@@ -13,14 +13,14 @@ use OpenTelemetry\SDK\Logs\NoopLoggerProvider;
 use OpenTelemetry\SDK\Metrics\NoopMeterProvider;
 use OpenTelemetry\SDK\Trace\SpanExporter\InMemoryExporter;
 use OpenTelemetry\SDK\Trace\SpanProcessor\SimpleSpanProcessor;
-use OpenTelemetry\SDK\Trace\TracerProviderInterface;
 use OpenTelemetry\SDK\Trace\TracerProvider;
+use OpenTelemetry\SDK\Trace\TracerProviderInterface;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;
 
 final class TracingTest extends TestCase
 {
-    public function testTraceReturnsCallbackResultAndActivatesNewSpan(): void {
+    public function test_trace_returns_callback_result_and_activates_new_span(): void {
         [$registry, $tracerProvider, $exporter] = $this->telemetry();
         $tracing = $registry->tracing('heroyt/laser-arena-control', '0.5.1');
 
@@ -57,7 +57,7 @@ final class TracingTest extends TestCase
         self::assertSame('0.5.1', $spans['result.import']->getInstrumentationScope()->getVersion());
     }
 
-    public function testTraceRecordsAndRethrowsCallbackException(): void {
+    public function test_trace_records_and_rethrows_callback_exception(): void {
         [$registry, $tracerProvider, $exporter] = $this->telemetry();
         $exception = new RuntimeException('Import failed.');
 
@@ -83,7 +83,7 @@ final class TracingTest extends TestCase
         self::assertCount(1, $span->getEvents());
     }
 
-    public function testManualSpanEndIsIdempotent(): void {
+    public function test_manual_span_end_is_idempotent(): void {
         [$registry, $tracerProvider, $exporter] = $this->telemetry();
         $activeSpan = $registry->tracing('esoul/hoofvet')->start('manual.operation');
 
@@ -94,11 +94,11 @@ final class TracingTest extends TestCase
         self::assertCount(1, $exporter->getSpans());
     }
 
-    public function testTelemetryStartupFailureDoesNotAffectCallback(): void {
+    public function test_telemetry_startup_failure_does_not_affect_callback(): void {
         $tracer = $this->createStub(TracerInterface::class);
         $tracer->method('spanBuilder')->willThrowException(new RuntimeException('Exporter unavailable.'));
 
-        $result = (new Tracing($tracer))->trace('operation', static fn(): string => 'completed');
+        $result = (new Tracing($tracer))->trace('operation', static fn (): string => 'completed');
 
         self::assertSame('completed', $result);
     }

@@ -15,17 +15,17 @@ use OpenTelemetry\API\Metrics\MeterInterface;
 use OpenTelemetry\SDK\Logs\NoopLoggerProvider;
 use OpenTelemetry\SDK\Metrics\Data\Histogram;
 use OpenTelemetry\SDK\Metrics\Data\Sum;
-use OpenTelemetry\SDK\Metrics\NoopMeterProvider;
 use OpenTelemetry\SDK\Metrics\MeterProvider;
 use OpenTelemetry\SDK\Metrics\MetricExporter\InMemoryExporter;
 use OpenTelemetry\SDK\Metrics\MetricReader\ExportingReader;
+use OpenTelemetry\SDK\Metrics\NoopMeterProvider;
 use OpenTelemetry\SDK\Trace\NoopTracerProvider;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;
 
 final class MetricsTest extends TestCase
 {
-    public function testCreatesStableInstrumentsAndExportsMeasurements(): void {
+    public function test_creates_stable_instruments_and_exports_measurements(): void {
         $exporter = new InMemoryExporter();
         $meterProvider = MeterProvider::builder()
             ->addReader(new ExportingReader($exporter))
@@ -76,7 +76,7 @@ final class MetricsTest extends TestCase
         self::assertSame('success', $histogramPoints[0]->attributes->get('result.outcome'));
     }
 
-    public function testRejectsConflictingInstrumentDefinitions(): void {
+    public function test_rejects_conflicting_instrument_definitions(): void {
         $metrics = new Metrics((new NoopMeterProvider())->getMeter('tests/metrics'));
         $metrics->counter('result.imports', '{result}', 'Imported result files.');
 
@@ -93,7 +93,7 @@ final class MetricsTest extends TestCase
         $otherMetrics->histogram('result.imports');
     }
 
-    public function testTelemetryFailuresDoNotAffectApplicationControlFlow(): void {
+    public function test_telemetry_failures_do_not_affect_application_control_flow(): void {
         $this->expectNotToPerformAssertions();
 
         $meter = $this->createStub(MeterInterface::class);

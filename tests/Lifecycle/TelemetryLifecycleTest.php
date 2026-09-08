@@ -19,7 +19,7 @@ use RuntimeException;
 
 final class TelemetryLifecycleTest extends TestCase
 {
-    public function testForceFlushAttemptsEveryProviderAndContainsFailures(): void {
+    public function test_force_flush_attempts_every_provider_and_contains_failures(): void {
         $tracerProvider = $this->createMock(TracerProviderInterface::class);
         $tracerProvider->expects(self::once())
             ->method('forceFlush')
@@ -45,7 +45,7 @@ final class TelemetryLifecycleTest extends TestCase
         self::assertFalse($lifecycle->forceFlush());
     }
 
-    public function testShutdownRunsOnceAndRetainsTheFirstResult(): void {
+    public function test_shutdown_runs_once_and_retains_the_first_result(): void {
         $tracerProvider = $this->createMock(TracerProviderInterface::class);
         $tracerProvider->expects(self::once())
             ->method('shutdown')
@@ -73,7 +73,7 @@ final class TelemetryLifecycleTest extends TestCase
         self::assertFalse($lifecycle->forceFlush());
     }
 
-    public function testShutdownDetachesGlobalSdkRegistration(): void {
+    public function test_shutdown_detaches_global_sdk_registration(): void {
         $tracerProvider = TracerProvider::builder()->build();
         $meterProvider = MeterProvider::builder()->build();
         $loggerProvider = LoggerProvider::builder()->build();

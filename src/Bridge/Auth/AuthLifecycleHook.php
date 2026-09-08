@@ -49,7 +49,7 @@ final readonly class AuthLifecycleHook implements AuthLifecycleHookInterface
             // Continue with trace enrichment.
         }
 
-        if (!$this->traces) {
+        if ( ! $this->traces) {
             return;
         }
 

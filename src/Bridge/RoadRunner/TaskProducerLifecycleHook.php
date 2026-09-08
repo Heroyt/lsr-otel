@@ -45,7 +45,7 @@ final readonly class TaskProducerLifecycleHook implements TaskDispatchLifecycleH
     }
 
     /**
-     * @param non-empty-list<\Spiral\RoadRunner\Jobs\Task\PreparedTaskInterface> $tasks
+     * @param non-empty-list<PreparedTaskInterface> $tasks
      */
     public function begin(string $queue, array $tasks): TaskDispatchLifecycleScopeInterface {
         $operations = [];

@@ -31,7 +31,7 @@ final readonly class ProviderFactory
     }
 
     public function createMeterProvider(ResourceInfo $resource): MeterProviderInterface {
-        if (!$this->enabled) {
+        if ( ! $this->enabled) {
             return new NoopMeterProvider();
         }
 
@@ -39,7 +39,7 @@ final readonly class ProviderFactory
     }
 
     public function createTracerProvider(MeterProviderInterface $meterProvider): TracerProviderInterface {
-        if (!$this->enabled) {
+        if ( ! $this->enabled) {
             return new NoopTracerProvider();
         }
 
@@ -50,7 +50,7 @@ final readonly class ProviderFactory
         MeterProviderInterface $meterProvider,
         ResourceInfo $resource,
     ): LoggerProviderInterface {
-        if (!$this->enabled) {
+        if ( ! $this->enabled) {
             return NoopLoggerProvider::getInstance();
         }
 
@@ -58,7 +58,7 @@ final readonly class ProviderFactory
     }
 
     public function createPropagator(): TextMapPropagatorInterface {
-        if (!$this->enabled) {
+        if ( ! $this->enabled) {
             return NoopTextMapPropagator::getInstance();
         }
 

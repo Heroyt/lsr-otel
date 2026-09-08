@@ -14,7 +14,7 @@ final class PsrRequestHeaderGetter implements PropagationGetterInterface
     }
 
     public function get(mixed $carrier, string $key): ?string {
-        if (!$carrier instanceof ServerRequestInterface || !$carrier->hasHeader($key)) {
+        if ( ! $carrier instanceof ServerRequestInterface || ! $carrier->hasHeader($key)) {
             return null;
         }
 

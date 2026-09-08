@@ -49,7 +49,7 @@ final readonly class RouteResolutionHook implements RouteResolutionHookInterface
             // Continue with trace enrichment.
         }
 
-        if (!$this->traces) {
+        if ( ! $this->traces) {
             return;
         }
 

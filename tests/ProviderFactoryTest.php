@@ -13,7 +13,7 @@ use PHPUnit\Framework\TestCase;
 
 final class ProviderFactoryTest extends TestCase
 {
-    public function testDisabledFactoryBuildsOneConsistentNoopSdk(): void {
+    public function test_disabled_factory_builds_one_consistent_noop_sdk(): void {
         $factory = new ProviderFactory(false);
         $resource = $factory->createResource();
         $meterProvider = $factory->createMeterProvider($resource);

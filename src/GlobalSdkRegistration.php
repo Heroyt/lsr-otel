@@ -12,8 +12,8 @@ use OpenTelemetry\API\Logs\NoopLoggerProvider;
 use OpenTelemetry\API\Metrics\Noop\NoopMeterProvider;
 use OpenTelemetry\API\Trace\NoopTracerProvider;
 use OpenTelemetry\Context\Context;
-use OpenTelemetry\Context\Propagation\NoopTextMapPropagator;
 use OpenTelemetry\Context\Propagation\NoopResponsePropagator;
+use OpenTelemetry\Context\Propagation\NoopTextMapPropagator;
 use OpenTelemetry\Context\ScopeInterface;
 use OpenTelemetry\SDK\Sdk;
 use Throwable;
@@ -23,7 +23,7 @@ final class GlobalSdkRegistration
     private ?ScopeInterface $scope = null;
 
     public function __construct(Sdk $sdk, bool $enabled = true) {
-        if (!$enabled) {
+        if ( ! $enabled) {
             return;
         }
         $this->assertGlobalsAreAvailable();
@@ -55,12 +55,12 @@ final class GlobalSdkRegistration
 
     private function assertGlobalsAreAvailable(): void {
         if (
-            !Globals::tracerProvider() instanceof NoopTracerProvider
-            || !Globals::meterProvider() instanceof NoopMeterProvider
-            || !Globals::loggerProvider() instanceof NoopLoggerProvider
-            || !Globals::eventLoggerProvider() instanceof NoopEventLoggerProvider
-            || !Globals::propagator() instanceof NoopTextMapPropagator
-            || !Globals::responsePropagator() instanceof NoopResponsePropagator
+            ! Globals::tracerProvider() instanceof NoopTracerProvider
+            || ! Globals::meterProvider() instanceof NoopMeterProvider
+            || ! Globals::loggerProvider() instanceof NoopLoggerProvider
+            || ! Globals::eventLoggerProvider() instanceof NoopEventLoggerProvider
+            || ! Globals::propagator() instanceof NoopTextMapPropagator
+            || ! Globals::responsePropagator() instanceof NoopResponsePropagator
         ) {
             throw new LogicException(
                 'Global OpenTelemetry providers are already configured. '

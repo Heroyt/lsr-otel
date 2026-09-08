@@ -19,7 +19,7 @@ use PHPUnit\Framework\TestCase;
 
 final class GlobalSdkRegistrationTest extends TestCase
 {
-    public function testRegistersSdkProvidersUntilDetached(): void {
+    public function test_registers_sdk_providers_until_detached(): void {
         $sdk = $this->sdk();
         $registration = new GlobalSdkRegistration($sdk);
 
@@ -36,7 +36,7 @@ final class GlobalSdkRegistrationTest extends TestCase
         $this->shutdown($sdk);
     }
 
-    public function testDisabledRegistrationDoesNotReplaceGlobals(): void {
+    public function test_disabled_registration_does_not_replace_globals(): void {
         $sdk = $this->sdk();
         $registration = new GlobalSdkRegistration($sdk, false);
 
@@ -48,7 +48,7 @@ final class GlobalSdkRegistrationTest extends TestCase
         $this->shutdown($sdk);
     }
 
-    public function testRegistrationPreservesTheActiveContext(): void {
+    public function test_registration_preserves_the_active_context(): void {
         $activeProvider = TracerProvider::builder()->build();
         $span = $activeProvider->getTracer('lsr-otel-tests')
             ->spanBuilder('active')
@@ -70,7 +70,7 @@ final class GlobalSdkRegistrationTest extends TestCase
         }
     }
 
-    public function testRejectsAnExistingGlobalSdk(): void {
+    public function test_rejects_an_existing_global_sdk(): void {
         $existingProvider = TracerProvider::builder()->build();
         $scope = Configurator::create()
             ->withTracerProvider($existingProvider)

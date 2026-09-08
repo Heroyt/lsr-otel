@@ -44,19 +44,19 @@ final class SafeIntegrationsMetricsTest extends TestCase
 
     protected function setUp(): void {
         if (
-            !interface_exists(CacheLifecycleHookInterface::class)
-            || !interface_exists(SchedulerLifecycleHookInterface::class)
-            || !interface_exists(InertiaLifecycleHookInterface::class)
-            || !class_exists(AuthLifecycleEvent::class)
-            || !class_exists(RouteResolutionEvent::class)
-            || !class_exists(RequestMappingEvent::class)
-            || !class_exists(DatabaseLifecycleEvent::class)
+            ! interface_exists(CacheLifecycleHookInterface::class)
+            || ! interface_exists(SchedulerLifecycleHookInterface::class)
+            || ! interface_exists(InertiaLifecycleHookInterface::class)
+            || ! class_exists(AuthLifecycleEvent::class)
+            || ! class_exists(RouteResolutionEvent::class)
+            || ! class_exists(RequestMappingEvent::class)
+            || ! class_exists(DatabaseLifecycleEvent::class)
         ) {
             self::markTestSkipped('Optional framework packages are not installed.');
         }
     }
 
-    public function testSafeAdaptersExportOnlyBoundedMetricDimensions(): void {
+    public function test_safe_adapters_export_only_bounded_metric_dimensions(): void {
         $spanExporter = new InMemorySpanExporter();
         $tracerProvider = TracerProvider::builder()
             ->addSpanProcessor(new SimpleSpanProcessor($spanExporter))
@@ -113,7 +113,7 @@ final class SafeIntegrationsMetricsTest extends TestCase
         self::assertCount(5, $spanExporter->getSpans());
         $databaseSpans = array_values(array_filter(
             $spanExporter->getSpans(),
-            static fn($span): bool => $span->getName() === 'db select',
+            static fn ($span): bool => $span->getName() === 'db select',
         ));
         self::assertCount(1, $databaseSpans);
         self::assertSame(
@@ -124,7 +124,7 @@ final class SafeIntegrationsMetricsTest extends TestCase
         self::assertNull($databaseSpans[0]->getAttributes()->get('db.statement'));
         $rawSqlSpans = array_values(array_filter(
             $spanExporter->getSpans(),
-            static fn($span): bool => $span->getName() === 'db query',
+            static fn ($span): bool => $span->getName() === 'db query',
         ));
         self::assertCount(1, $rawSqlSpans);
         self::assertSame(

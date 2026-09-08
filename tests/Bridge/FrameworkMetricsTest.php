@@ -41,18 +41,18 @@ final class FrameworkMetricsTest extends TestCase
 {
     protected function setUp(): void {
         if (
-            !interface_exists(RequestLifecycleHookInterface::class)
-            || !interface_exists(CommandLifecycleHookInterface::class)
-            || !interface_exists(TaskDispatchLifecycleHookInterface::class)
-            || !interface_exists(TaskLifecycleHookInterface::class)
-            || !class_exists(PreparedTask::class)
-            || !class_exists(Command::class)
+            ! interface_exists(RequestLifecycleHookInterface::class)
+            || ! interface_exists(CommandLifecycleHookInterface::class)
+            || ! interface_exists(TaskDispatchLifecycleHookInterface::class)
+            || ! interface_exists(TaskLifecycleHookInterface::class)
+            || ! class_exists(PreparedTask::class)
+            || ! class_exists(Command::class)
         ) {
             self::markTestSkipped('Optional framework packages are not installed.');
         }
     }
 
-    public function testAdaptersExportFrameworkMetrics(): void {
+    public function test_adapters_export_framework_metrics(): void {
         $spanExporter = new InMemorySpanExporter();
         $tracerProvider = TracerProvider::builder()
             ->addSpanProcessor(new SimpleSpanProcessor($spanExporter))
@@ -108,7 +108,7 @@ final class FrameworkMetricsTest extends TestCase
         $names = [];
         foreach ($metrics as $metric) {
             $names[] = $metric->name;
-            if (!$metric->data instanceof Histogram) {
+            if ( ! $metric->data instanceof Histogram) {
                 continue;
             }
 

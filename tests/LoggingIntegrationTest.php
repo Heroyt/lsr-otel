@@ -23,8 +23,8 @@ final class LoggingIntegrationTest extends TestCase
      * @throws JsonException
      */
     #[DataProvider('modes')]
-    public function testPsr3Integration(string $mode): void {
-        if (!extension_loaded('opentelemetry')) {
+    public function test_psr3_integration(string $mode): void {
+        if ( ! extension_loaded('opentelemetry')) {
             self::markTestSkipped('The ext-opentelemetry extension is required.');
         }
 
@@ -75,7 +75,7 @@ final class LoggingIntegrationTest extends TestCase
             ],
             $pipes,
         );
-        if (!is_resource($process)) {
+        if ( ! is_resource($process)) {
             throw new RuntimeException('Unable to start the PSR-3 integration fixture.');
         }
 

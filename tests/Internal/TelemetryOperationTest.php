@@ -19,7 +19,7 @@ use RuntimeException;
 
 final class TelemetryOperationTest extends TestCase
 {
-    public function testFailureCompletesSpanAndMetricsExactlyOnce(): void {
+    public function test_failure_completes_span_and_metrics_exactly_once(): void {
         $spanExporter = new InMemorySpanExporter();
         $tracerProvider = TracerProvider::builder()
             ->addSpanProcessor(new SimpleSpanProcessor($spanExporter))

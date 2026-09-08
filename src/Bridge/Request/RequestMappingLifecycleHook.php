@@ -49,7 +49,7 @@ final readonly class RequestMappingLifecycleHook implements RequestMappingLifecy
             // Continue with trace enrichment.
         }
 
-        if (!$this->traces) {
+        if ( ! $this->traces) {
             return;
         }
 

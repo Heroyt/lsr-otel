@@ -32,12 +32,12 @@ final class OrmLifecycleHookTest extends TestCase
     }
 
     protected function setUp(): void {
-        if (!class_exists(ModelLifecycleEvent::class)) {
+        if ( ! class_exists(ModelLifecycleEvent::class)) {
             self::markTestSkipped('The optional lsr/orm package is not installed.');
         }
     }
 
-    public function testGranularityCategoriesAreIndependent(): void {
+    public function test_granularity_categories_are_independent(): void {
         [$instrumentation] = $this->telemetry();
         $hook = new ModelLifecycleHook(
             $instrumentation,
@@ -54,7 +54,7 @@ final class OrmLifecycleHookTest extends TestCase
         self::assertFalse($hook->captures('unknown'));
     }
 
-    public function testModelClassIsTraceOnlyByDefault(): void {
+    public function test_model_class_is_trace_only_by_default(): void {
         [$instrumentation, $tracerProvider, $meterProvider, $spanExporter, $metricExporter] = $this->telemetry();
         $hook = new ModelLifecycleHook($instrumentation);
         $scope = $hook->begin(
@@ -84,7 +84,7 @@ final class OrmLifecycleHookTest extends TestCase
         self::assertSame(['lsr.orm.operation.duration', 'lsr.orm.operations'], $names);
     }
 
-    public function testModelMetricDimensionRequiresOptIn(): void {
+    public function test_model_metric_dimension_requires_opt_in(): void {
         [$instrumentation, $tracerProvider, $meterProvider, $spanExporter, $metricExporter] = $this->telemetry();
         $hook = new ModelLifecycleHook(
             $instrumentation,
@@ -110,7 +110,7 @@ final class OrmLifecycleHookTest extends TestCase
         }
     }
 
-    public function testDatabaseSpanIsNestedUnderOrmScope(): void {
+    public function test_database_span_is_nested_under_orm_scope(): void {
         [$instrumentation, $tracerProvider, $meterProvider, $spanExporter] = $this->telemetry();
         $scope = (new ModelLifecycleHook($instrumentation))->begin(
             ModelLifecycleEvent::QUERY,

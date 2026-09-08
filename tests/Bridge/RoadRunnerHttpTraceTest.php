@@ -27,14 +27,14 @@ final class RoadRunnerHttpTraceTest extends TestCase
 {
     protected function setUp(): void {
         if (
-            !interface_exists(RequestLifecycleHookInterface::class)
-            || !interface_exists(RequestOperationLifecycleHookInterface::class)
+            ! interface_exists(RequestLifecycleHookInterface::class)
+            || ! interface_exists(RequestOperationLifecycleHookInterface::class)
         ) {
             self::markTestSkipped('The compatible lsr/core package is not installed.');
         }
     }
 
-    public function testSequentialRequestsExportIsolatedNestedLifecycleTraces(): void {
+    public function test_sequential_requests_export_isolated_nested_lifecycle_traces(): void {
         $exporter = new InMemoryExporter();
         $tracerProvider = TracerProvider::builder()
             ->addSpanProcessor(new SimpleSpanProcessor($exporter))

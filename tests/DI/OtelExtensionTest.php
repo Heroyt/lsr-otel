@@ -37,7 +37,7 @@ final class OtelExtensionTest extends TestCase
         FileSystem::delete($this->directory);
     }
 
-    public function testRegistersOfficialProviderInterfacesAndLifecycle(): void {
+    public function test_registers_official_provider_interfaces_and_lifecycle(): void {
         $loader = new ContainerLoader($this->directory, true);
         /** @var class-string<Container> $containerClass */
         $containerClass = $loader->load(function (Compiler $compiler): ?string {
@@ -80,7 +80,7 @@ final class OtelExtensionTest extends TestCase
         );
     }
 
-    public function testRegistersConfiguredApplicationInstrumentationWhenTelemetryIsDisabled(): void {
+    public function test_registers_configured_application_instrumentation_when_telemetry_is_disabled(): void {
         $loader = new ContainerLoader($this->directory, true);
         /** @var class-string<Container> $containerClass */
         $containerClass = $loader->load(function (Compiler $compiler): ?string {
@@ -101,7 +101,7 @@ final class OtelExtensionTest extends TestCase
         $container = new $containerClass();
 
         $tracing = $container->getByType(Tracing::class);
-        self::assertSame('completed', $tracing->trace('operation', static fn(): string => 'completed'));
+        self::assertSame('completed', $tracing->trace('operation', static fn (): string => 'completed'));
         self::assertSame($tracing, $container->getService('otel.tracing'));
         $metrics = $container->getByType(Metrics::class);
         $metrics->counter('operations')->add();

@@ -13,7 +13,7 @@ use PHPUnit\Framework\TestCase;
 
 final class DurationHistogramTest extends TestCase
 {
-    public function testUsesSecondBasedLatencyBoundaries(): void {
+    public function test_uses_second_based_latency_boundaries(): void {
         $exporter = new InMemoryExporter();
         $meterProvider = MeterProvider::builder()
             ->addReader(new ExportingReader($exporter))

@@ -25,10 +25,10 @@ final class OtelOptionalIntegrationsTest extends TestCase
 
     protected function setUp(): void {
         if (
-            !class_exists(FpmHandler::class)
-            || !class_exists(HttpWorker::class)
-            || !class_exists(CommandBus::class)
-            || !class_exists(Application::class)
+            ! class_exists(FpmHandler::class)
+            || ! class_exists(HttpWorker::class)
+            || ! class_exists(CommandBus::class)
+            || ! class_exists(Application::class)
         ) {
             self::markTestSkipped('Optional framework packages are not installed.');
         }
@@ -52,7 +52,7 @@ final class OtelOptionalIntegrationsTest extends TestCase
     }
 
     #[DataProvider('disabledIntegrationProvider')]
-    public function testIntegrationsAreEnabledByDefaultAndIndependentlyDisabled(string $disabled): void {
+    public function test_integrations_are_enabled_by_default_and_independently_disabled(string $disabled): void {
         $container = $this->compileContainer($disabled);
         self::assertSame(
             $disabled !== 'core',
@@ -144,7 +144,7 @@ final class OtelOptionalIntegrationsTest extends TestCase
 
     private function property(object $object, string $name): mixed {
         $reflection = new ReflectionClass($object);
-        while (!$reflection->hasProperty($name)) {
+        while ( ! $reflection->hasProperty($name)) {
             $reflection = $reflection->getParentClass();
             if ($reflection === false) {
                 self::fail('Property ' . $name . ' was not found on ' . $object::class . '.');

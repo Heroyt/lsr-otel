@@ -9,6 +9,7 @@ use LogicException;
 use Lsr\Otel\InstrumentationRegistry;
 use Lsr\Otel\Lifecycle\TelemetryLifecycle;
 use Lsr\Otel\Metrics;
+use Lsr\Otel\ProviderFactory;
 use Lsr\Otel\Tracing;
 use OpenTelemetry\SDK\Logs\Exporter\InMemoryExporter as InMemoryLogExporter;
 use OpenTelemetry\SDK\Logs\LoggerProvider;
@@ -24,7 +25,7 @@ use PHPUnit\Framework\TestCase;
 
 final class InstrumentationRegistryTest extends TestCase
 {
-    public function testExportsAllSignalsWithOneStableInstrumentationScope(): void {
+    public function test_exports_all_signals_with_one_stable_instrumentation_scope(): void {
         $spanExporter = new InMemorySpanExporter();
         $tracerProvider = TracerProvider::builder()
             ->addSpanProcessor(new SimpleSpanProcessor($spanExporter))
@@ -96,8 +97,8 @@ final class InstrumentationRegistryTest extends TestCase
         self::assertSame($spans[0]->getSpanId(), $logs[0]->getSpanContext()?->getSpanId());
     }
 
-    public function testAcceptsComposerNamesAndRejectsInvalidNames(): void {
-        $factory = new \Lsr\Otel\ProviderFactory(false);
+    public function test_accepts_composer_names_and_rejects_invalid_names(): void {
+        $factory = new ProviderFactory(false);
         $resource = $factory->createResource();
         $meterProvider = $factory->createMeterProvider($resource);
         $registry = new InstrumentationRegistry(

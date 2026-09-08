@@ -13,9 +13,11 @@ use Lsr\Core\FpmHandler;
 use Lsr\Core\Http\Lifecycle\RequestLifecycleHookInterface;
 use Lsr\Core\Http\Lifecycle\RequestOperationLifecycleHookInterface;
 use Lsr\Core\Http\Lifecycle\RouteResolutionHookInterface;
-use Lsr\Core\RouteHandler;
 use Lsr\Core\Requests\Lifecycle\RequestMappingLifecycleHookInterface;
 use Lsr\Core\Requests\Validation\RequestValidationMapper;
+use Lsr\Core\RouteHandler;
+use Lsr\CQRS\CommandBus;
+use Lsr\CQRS\Lifecycle\CommandLifecycleHookInterface;
 use Lsr\Db\Connection;
 use Lsr\Db\Lifecycle\DatabaseLifecycleHookInterface;
 use Lsr\Inertia\Lifecycle\InertiaLifecycleHookInterface;
@@ -24,13 +26,12 @@ use Lsr\Orm\Lifecycle\ModelLifecycleHookInterface;
 use Lsr\Orm\ModelRepository;
 use Lsr\Otel\Bridge\Auth\AuthLifecycleHook;
 use Lsr\Otel\Bridge\Cache\CacheLifecycleHook;
-use Lsr\CQRS\CommandBus;
 use Lsr\Otel\Bridge\Console\ConsoleTelemetrySubscriber;
 use Lsr\Otel\Bridge\Core\FpmFlushHandler;
 use Lsr\Otel\Bridge\Core\HttpServerLifecycleHook;
 use Lsr\Otel\Bridge\Core\RequestOperationLifecycleHook;
-use Lsr\Otel\Bridge\Cqrs\CommandLifecycleHook;
 use Lsr\Otel\Bridge\Core\RouteResolutionHook;
+use Lsr\Otel\Bridge\Cqrs\CommandLifecycleHook;
 use Lsr\Otel\Bridge\Database\DatabaseLifecycleHook;
 use Lsr\Otel\Bridge\Inertia\InertiaLifecycleHook;
 use Lsr\Otel\Bridge\Orm\ModelLifecycleHook;
@@ -41,20 +42,20 @@ use Lsr\Otel\Bridge\RoadRunner\TaskProducerLifecycleHook;
 use Lsr\Otel\Bridge\Scheduler\SchedulerLifecycleHook;
 use Lsr\Otel\GlobalSdkRegistration;
 use Lsr\Otel\InstrumentationRegistry;
-use Lsr\Otel\Metrics;
 use Lsr\Otel\Lifecycle\TelemetryLifecycle;
 use Lsr\Otel\Lifecycle\TelemetryLifecycleInterface;
+use Lsr\Otel\Metrics;
 use Lsr\Otel\ProviderFactory;
 use Lsr\Otel\Tracing;
 use Lsr\Roadrunner\Lifecycle\TaskDispatchLifecycleHookInterface;
 use Lsr\Roadrunner\Lifecycle\TaskLifecycleHookInterface;
 use Lsr\Roadrunner\Lifecycle\WorkerLifecycleHookInterface;
-use Lsr\Scheduler\Internal\ScheduledCommandMessageHandler;
-use Lsr\Scheduler\Internal\SchedulerJobMessageHandler;
-use Lsr\Scheduler\Lifecycle\SchedulerLifecycleHookInterface;
 use Lsr\Roadrunner\Tasks\TaskProducer;
 use Lsr\Roadrunner\Workers\HttpWorker;
 use Lsr\Roadrunner\Workers\JobsWorker;
+use Lsr\Scheduler\Internal\ScheduledCommandMessageHandler;
+use Lsr\Scheduler\Internal\SchedulerJobMessageHandler;
+use Lsr\Scheduler\Lifecycle\SchedulerLifecycleHookInterface;
 use Nette\DI\CompilerExtension;
 use Nette\DI\Definitions\Reference;
 use Nette\DI\Definitions\ServiceDefinition;
@@ -223,7 +224,7 @@ final class OtelExtension extends CompilerExtension
             );
         $this->registerApplicationInstrumentation();
 
-        if (!$this->config->enabled) {
+        if ( ! $this->config->enabled) {
             return;
         }
 
@@ -404,7 +405,7 @@ final class OtelExtension extends CompilerExtension
 
     private function registerCoreIntegration(): void {
         $config = $this->config->integrations->core;
-        if (!$this->shouldRegister($config)) {
+        if ( ! $this->shouldRegister($config)) {
             return;
         }
 
@@ -439,10 +440,10 @@ final class OtelExtension extends CompilerExtension
     private function registerRoadRunnerIntegration(): void {
         $config = $this->config->integrations->roadrunner;
         if (
-            !$this->shouldRegister($config)
-            || !interface_exists(TaskLifecycleHookInterface::class)
-            || !interface_exists(TaskDispatchLifecycleHookInterface::class)
-            || !interface_exists(WorkerLifecycleHookInterface::class)
+            ! $this->shouldRegister($config)
+            || ! interface_exists(TaskLifecycleHookInterface::class)
+            || ! interface_exists(TaskDispatchLifecycleHookInterface::class)
+            || ! interface_exists(WorkerLifecycleHookInterface::class)
         ) {
             return;
         }
@@ -491,10 +492,10 @@ final class OtelExtension extends CompilerExtension
     private function registerConsoleIntegration(): void {
         $config = $this->config->integrations->console;
         if (
-            !$this->shouldRegister($config)
-            || !class_exists(ConsoleEvents::class)
-            || !class_exists(EventDispatcher::class)
-            || !interface_exists(EventSubscriberInterface::class)
+            ! $this->shouldRegister($config)
+            || ! class_exists(ConsoleEvents::class)
+            || ! class_exists(EventDispatcher::class)
+            || ! interface_exists(EventSubscriberInterface::class)
         ) {
             return;
         }
@@ -518,15 +519,15 @@ final class OtelExtension extends CompilerExtension
     private function registerCqrsIntegration(): void {
         $config = $this->config->integrations->cqrs;
         if (
-            !$this->shouldRegister($config)
-            || !interface_exists(\Lsr\CQRS\Lifecycle\CommandLifecycleHookInterface::class)
+            ! $this->shouldRegister($config)
+            || ! interface_exists(CommandLifecycleHookInterface::class)
         ) {
             return;
         }
 
         $builder = $this->getContainerBuilder();
         $builder->addDefinition($this->prefix('integration.cqrs.command'))
-            ->setType(\Lsr\CQRS\Lifecycle\CommandLifecycleHookInterface::class)
+            ->setType(CommandLifecycleHookInterface::class)
             ->setFactory(CommandLifecycleHook::class, [
                 new Reference($this->prefix('instrumentation')),
                 $config->traces,
@@ -537,9 +538,9 @@ final class OtelExtension extends CompilerExtension
     private function registerCacheIntegration(): void {
         $config = $this->config->integrations->cache;
         if (
-            !$this->shouldRegister($config)
-            || !interface_exists(CacheLifecycleHookInterface::class)
-            || !method_exists(Cache::class, 'setLifecycleHook')
+            ! $this->shouldRegister($config)
+            || ! interface_exists(CacheLifecycleHookInterface::class)
+            || ! method_exists(Cache::class, 'setLifecycleHook')
         ) {
             return;
         }
@@ -557,9 +558,9 @@ final class OtelExtension extends CompilerExtension
     private function registerRoutingIntegration(): void {
         $config = $this->config->integrations->routing;
         if (
-            !$this->shouldRegister($config)
-            || !interface_exists(RouteResolutionHookInterface::class)
-            || !method_exists(App::class, 'setRouteResolutionHook')
+            ! $this->shouldRegister($config)
+            || ! interface_exists(RouteResolutionHookInterface::class)
+            || ! method_exists(App::class, 'setRouteResolutionHook')
         ) {
             return;
         }
@@ -577,10 +578,10 @@ final class OtelExtension extends CompilerExtension
     private function registerSchedulerIntegration(): void {
         $config = $this->config->integrations->scheduler;
         if (
-            !$this->shouldRegister($config)
-            || !interface_exists(SchedulerLifecycleHookInterface::class)
-            || !method_exists(SchedulerJobMessageHandler::class, 'setLifecycleHook')
-            || !method_exists(ScheduledCommandMessageHandler::class, 'setLifecycleHook')
+            ! $this->shouldRegister($config)
+            || ! interface_exists(SchedulerLifecycleHookInterface::class)
+            || ! method_exists(SchedulerJobMessageHandler::class, 'setLifecycleHook')
+            || ! method_exists(ScheduledCommandMessageHandler::class, 'setLifecycleHook')
         ) {
             return;
         }
@@ -598,9 +599,9 @@ final class OtelExtension extends CompilerExtension
     private function registerAuthIntegration(): void {
         $config = $this->config->integrations->auth;
         if (
-            !$this->shouldRegister($config)
-            || !interface_exists(AuthLifecycleHookInterface::class)
-            || !method_exists(Auth::class, 'setLifecycleHook')
+            ! $this->shouldRegister($config)
+            || ! interface_exists(AuthLifecycleHookInterface::class)
+            || ! method_exists(Auth::class, 'setLifecycleHook')
         ) {
             return;
         }
@@ -618,9 +619,9 @@ final class OtelExtension extends CompilerExtension
     private function registerRequestIntegration(): void {
         $config = $this->config->integrations->request;
         if (
-            !$this->shouldRegister($config)
-            || !interface_exists(RequestMappingLifecycleHookInterface::class)
-            || !method_exists(RequestValidationMapper::class, 'setLifecycleHook')
+            ! $this->shouldRegister($config)
+            || ! interface_exists(RequestMappingLifecycleHookInterface::class)
+            || ! method_exists(RequestValidationMapper::class, 'setLifecycleHook')
         ) {
             return;
         }
@@ -638,9 +639,9 @@ final class OtelExtension extends CompilerExtension
     private function registerInertiaIntegration(): void {
         $config = $this->config->integrations->inertia;
         if (
-            !$this->shouldRegister($config)
-            || !interface_exists(InertiaLifecycleHookInterface::class)
-            || !method_exists(Inertia::class, 'setLifecycleHook')
+            ! $this->shouldRegister($config)
+            || ! interface_exists(InertiaLifecycleHookInterface::class)
+            || ! method_exists(Inertia::class, 'setLifecycleHook')
         ) {
             return;
         }
@@ -658,9 +659,9 @@ final class OtelExtension extends CompilerExtension
     private function registerDatabaseIntegration(): void {
         $config = $this->config->integrations->database;
         if (
-            !$this->shouldRegister($config)
-            || !interface_exists(DatabaseLifecycleHookInterface::class)
-            || !method_exists(Connection::class, 'setLifecycleHook')
+            ! $this->shouldRegister($config)
+            || ! interface_exists(DatabaseLifecycleHookInterface::class)
+            || ! method_exists(Connection::class, 'setLifecycleHook')
         ) {
             return;
         }
@@ -678,10 +679,10 @@ final class OtelExtension extends CompilerExtension
     private function registerOrmIntegration(): void {
         $config = $this->config->integrations->orm;
         if (
-            !$this->shouldRegister($config)
-            || (!$config->mutations && !$config->queries && !$config->hydration)
-            || !interface_exists(ModelLifecycleHookInterface::class)
-            || !method_exists(ModelRepository::class, 'setLifecycleHook')
+            ! $this->shouldRegister($config)
+            || ( ! $config->mutations && ! $config->queries && ! $config->hydration)
+            || ! interface_exists(ModelLifecycleHookInterface::class)
+            || ! method_exists(ModelRepository::class, 'setLifecycleHook')
         ) {
             return;
         }

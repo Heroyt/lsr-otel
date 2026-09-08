@@ -14,7 +14,7 @@ final class TaskHeaderGetter implements PropagationGetterInterface
     }
 
     public function get(mixed $carrier, string $key): ?string {
-        if ($key === '' || !$carrier instanceof ProvidesHeadersInterface || !$carrier->hasHeader($key)) {
+        if ($key === '' || ! $carrier instanceof ProvidesHeadersInterface || ! $carrier->hasHeader($key)) {
             return null;
         }
 
