@@ -54,7 +54,7 @@
   "suggest": {
     "ext-opentelemetry": "Enables hook-based automatic instrumentation.",
     "lsr/auth": "Enables authentication outcome instrumentation.",
-    "lsr/cache": "Enables cache load instrumentation.",
+    "lsr/caching": "Enables cache load instrumentation.",
     "lsr/core": "Enables FPM and RoadRunner HTTP lifecycle instrumentation.",
     "lsr/db": "Enables database operation instrumentation.",
     "lsr/cqrs": "Enables synchronous command instrumentation.",
