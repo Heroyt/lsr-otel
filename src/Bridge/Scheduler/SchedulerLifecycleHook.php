@@ -57,13 +57,11 @@ final readonly class SchedulerLifecycleHook implements SchedulerLifecycleHookInt
                 $scope = $span->activate();
             } catch (Throwable) {
                 try {
-                    $scope?->detach();
                     $span?->end();
                 } catch (Throwable) {
                     // Ignore cleanup failures from telemetry implementations.
                 }
                 $span = null;
-                $scope = null;
             }
         }
 

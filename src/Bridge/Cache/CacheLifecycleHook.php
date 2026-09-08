@@ -61,13 +61,11 @@ final readonly class CacheLifecycleHook implements CacheLifecycleHookInterface
                 $scope = $span->activate();
             } catch (Throwable) {
                 try {
-                    $scope?->detach();
                     $span?->end();
                 } catch (Throwable) {
                     // Ignore cleanup failures from telemetry implementations.
                 }
                 $span = null;
-                $scope = null;
             }
         }
 
