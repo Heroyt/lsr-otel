@@ -11,26 +11,20 @@ use Lsr\Otel\Bridge\Database\DatabaseLifecycleHook;
 use Lsr\Otel\Bridge\Orm\ModelLifecycleHook;
 use Lsr\Otel\InstrumentationRegistry;
 use OpenTelemetry\SDK\Logs\NoopLoggerProvider;
+use OpenTelemetry\SDK\Metrics\Data\Histogram;
+use OpenTelemetry\SDK\Metrics\Data\Sum;
 use OpenTelemetry\SDK\Metrics\MeterProvider;
+use OpenTelemetry\SDK\Metrics\MeterProviderInterface;
 use OpenTelemetry\SDK\Metrics\MetricExporter\InMemoryExporter as InMemoryMetricExporter;
 use OpenTelemetry\SDK\Metrics\MetricReader\ExportingReader;
 use OpenTelemetry\SDK\Trace\SpanExporter\InMemoryExporter as InMemorySpanExporter;
 use OpenTelemetry\SDK\Trace\SpanProcessor\SimpleSpanProcessor;
 use OpenTelemetry\SDK\Trace\TracerProvider;
+use OpenTelemetry\SDK\Trace\TracerProviderInterface;
 use PHPUnit\Framework\TestCase;
 
 final class OrmLifecycleHookTest extends TestCase
 {
-    public static function setUpBeforeClass(): void {
-        $packagesRoot = dirname(__DIR__, 3);
-        foreach (['lsr-db', 'lsr-orm'] as $package) {
-            $autoload = $packagesRoot . '/' . $package . '/vendor/autoload.php';
-            if (is_file($autoload)) {
-                require_once $autoload;
-            }
-        }
-    }
-
     protected function setUp(): void {
         if ( ! class_exists(ModelLifecycleEvent::class)) {
             self::markTestSkipped('The optional lsr/orm package is not installed.');
@@ -75,6 +69,7 @@ final class OrmLifecycleHookTest extends TestCase
         $names = [];
         foreach ($metricExporter->collect() as $metric) {
             $names[] = $metric->name;
+            self::assertTrue($metric->data instanceof Histogram || $metric->data instanceof Sum);
             foreach ($metric->data->dataPoints as $dataPoint) {
                 self::assertNull($dataPoint->attributes->get('lsr.orm.model.class'));
                 self::assertSame(ModelLifecycleEvent::QUERY, $dataPoint->attributes->get('lsr.orm.category'));
@@ -104,6 +99,7 @@ final class OrmLifecycleHookTest extends TestCase
         self::assertTrue($meterProvider->forceFlush());
         self::assertCount(0, $spanExporter->getSpans());
         foreach ($metricExporter->collect() as $metric) {
+            self::assertTrue($metric->data instanceof Histogram || $metric->data instanceof Sum);
             foreach ($metric->data->dataPoints as $dataPoint) {
                 self::assertSame(Model::class, $dataPoint->attributes->get('lsr.orm.model.class'));
             }
@@ -144,8 +140,8 @@ final class OrmLifecycleHookTest extends TestCase
     /**
      * @return array{
      *     InstrumentationRegistry,
-     *     TracerProvider,
-     *     MeterProvider,
+     *     TracerProviderInterface,
+     *     MeterProviderInterface,
      *     InMemorySpanExporter,
      *     InMemoryMetricExporter
      * }

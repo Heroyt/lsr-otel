@@ -25,67 +25,26 @@ use ReflectionClass;
 
 final class OtelSafeIntegrationsTest extends TestCase
 {
+    /** @var array<class-string, string> */
+    private const array REQUIRED_HOOKS = [
+        Cache::class => 'setLifecycleHook',
+        App::class => 'setRouteResolutionHook',
+        SchedulerJobMessageHandler::class => 'setLifecycleHook',
+        ScheduledCommandMessageHandler::class => 'setLifecycleHook',
+        Auth::class => 'setLifecycleHook',
+        RequestValidationMapper::class => 'setLifecycleHook',
+        Inertia::class => 'setLifecycleHook',
+        Connection::class => 'setLifecycleHook',
+        ModelRepository::class => 'setLifecycleHook',
+    ];
+
     private string $directory;
 
-    public static function setUpBeforeClass(): void {
-        $packagesRoot = dirname(__DIR__, 3);
-        $packages = [
-            'lsr-cache',
-            'lsr-scheduler',
-            'lsr-core',
-            'lsr-auth',
-            'lsr-request',
-            'lsr-inertia',
-            'lsr-db',
-            'lsr-orm',
-        ];
-        foreach ($packages as $package) {
-            $autoload = $packagesRoot . '/' . $package . '/vendor/autoload.php';
-            if (is_file($autoload)) {
-                require_once $autoload;
-            }
-        }
-
-        $prefixes = [
-            'Lsr\\Core\\Auth\\' => $packagesRoot . '/lsr-auth/src/',
-            'Lsr\\Core\\Requests\\' => $packagesRoot . '/lsr-request/src/',
-            'Lsr\\Caching\\' => $packagesRoot . '/lsr-cache/src/',
-            'Lsr\\Db\\' => $packagesRoot . '/lsr-db/src/',
-            'Lsr\\Inertia\\' => $packagesRoot . '/lsr-inertia/src/',
-            'Lsr\\Orm\\' => $packagesRoot . '/lsr-orm/src/',
-            'Lsr\\Scheduler\\' => $packagesRoot . '/lsr-scheduler/src/',
-            'Lsr\\Core\\' => $packagesRoot . '/lsr-core/src/',
-        ];
-        spl_autoload_register(
-            static function (string $class) use ($prefixes): void {
-                foreach ($prefixes as $prefix => $directory) {
-                    if ( ! str_starts_with($class, $prefix)) {
-                        continue;
-                    }
-                    $file = $directory . str_replace('\\', '/', substr($class, strlen($prefix))) . '.php';
-                    if (is_file($file)) {
-                        require_once $file;
-                    }
-                    return;
-                }
-            },
-            prepend: true,
-        );
-    }
-
     protected function setUp(): void {
-        if (
-            ! method_exists(Cache::class, 'setLifecycleHook')
-            || ! method_exists(App::class, 'setRouteResolutionHook')
-            || ! method_exists(SchedulerJobMessageHandler::class, 'setLifecycleHook')
-            || ! method_exists(ScheduledCommandMessageHandler::class, 'setLifecycleHook')
-            || ! method_exists(Auth::class, 'setLifecycleHook')
-            || ! method_exists(RequestValidationMapper::class, 'setLifecycleHook')
-            || ! method_exists(Inertia::class, 'setLifecycleHook')
-            || ! method_exists(Connection::class, 'setLifecycleHook')
-            || ! method_exists(ModelRepository::class, 'setLifecycleHook')
-        ) {
-            self::markTestSkipped('Local safe integration packages are not available.');
+        foreach (self::REQUIRED_HOOKS as $class => $method) {
+            if ( ! method_exists($class, $method)) {
+                self::markTestSkipped('Local safe integration packages are not available.');
+            }
         }
 
         $this->directory = sys_get_temp_dir() . '/lsr-otel-tests/safe-' . bin2hex(random_bytes(6));
@@ -94,10 +53,8 @@ final class OtelSafeIntegrationsTest extends TestCase
     }
 
     protected function tearDown(): void {
-        if (method_exists(ModelRepository::class, 'setLifecycleHook')) {
-            ModelRepository::setLifecycleHook(null);
-        }
         if (isset($this->directory)) {
+            ModelRepository::setLifecycleHook(null);
             FileSystem::delete($this->directory);
         }
     }

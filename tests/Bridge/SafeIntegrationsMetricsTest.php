@@ -21,6 +21,8 @@ use Lsr\Otel\Bridge\Scheduler\SchedulerLifecycleHook;
 use Lsr\Otel\InstrumentationRegistry;
 use Lsr\Scheduler\Lifecycle\SchedulerLifecycleHookInterface;
 use OpenTelemetry\SDK\Logs\NoopLoggerProvider;
+use OpenTelemetry\SDK\Metrics\Data\Histogram;
+use OpenTelemetry\SDK\Metrics\Data\Sum;
 use OpenTelemetry\SDK\Metrics\MeterProvider;
 use OpenTelemetry\SDK\Metrics\MetricExporter\InMemoryExporter as InMemoryMetricExporter;
 use OpenTelemetry\SDK\Metrics\MetricReader\ExportingReader;
@@ -28,20 +30,10 @@ use OpenTelemetry\SDK\Trace\SpanExporter\InMemoryExporter as InMemorySpanExporte
 use OpenTelemetry\SDK\Trace\SpanProcessor\SimpleSpanProcessor;
 use OpenTelemetry\SDK\Trace\TracerProvider;
 use PHPUnit\Framework\TestCase;
+use stdClass;
 
 final class SafeIntegrationsMetricsTest extends TestCase
 {
-    public static function setUpBeforeClass(): void {
-        $packagesRoot = dirname(__DIR__, 3);
-        $packages = ['lsr-cache', 'lsr-core', 'lsr-auth', 'lsr-request', 'lsr-inertia', 'lsr-scheduler', 'lsr-db'];
-        foreach ($packages as $package) {
-            $autoload = $packagesRoot . '/' . $package . '/vendor/autoload.php';
-            if (is_file($autoload)) {
-                require_once $autoload;
-            }
-        }
-    }
-
     protected function setUp(): void {
         if (
             ! interface_exists(CacheLifecycleHookInterface::class)
@@ -82,7 +74,7 @@ final class SafeIntegrationsMetricsTest extends TestCase
         (new RequestMappingLifecycleHook($instrumentation))->record(
             new RequestMappingEvent(
                 RequestMappingEvent::BODY,
-                'PrivateRequestClass',
+                stdClass::class,
                 RequestMappingEvent::SUCCESS,
                 0.001,
             ),
@@ -136,10 +128,8 @@ final class SafeIntegrationsMetricsTest extends TestCase
         $names = [];
         foreach ($metricExporter->collect() as $metric) {
             $names[] = $metric->name;
-            $dataPoints = is_array($metric->data->dataPoints)
-                ? $metric->data->dataPoints
-                : iterator_to_array($metric->data->dataPoints);
-            foreach ($dataPoints as $dataPoint) {
+            self::assertTrue($metric->data instanceof Histogram || $metric->data instanceof Sum);
+            foreach ($metric->data->dataPoints as $dataPoint) {
                 self::assertNull($dataPoint->attributes->get('db.query.text'));
             }
         }

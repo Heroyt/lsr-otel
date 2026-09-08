@@ -74,6 +74,7 @@ final class RoadRunnerHttpTraceTest extends TestCase
         $requestScope->complete(new Response(500));
 
         self::assertTrue($tracerProvider->forceFlush());
+        /** @var list<SpanDataInterface> $spans */
         $spans = $exporter->getSpans();
         self::assertCount(6, $spans);
 

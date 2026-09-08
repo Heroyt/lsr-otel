@@ -138,7 +138,7 @@ final class OtelCoreOperationsIntegrationTest extends TestCase
             (new ReflectionProperty(HttpWorker::class, 'requestLifecycleHook'))
                 ->getValue($container->getService('httpWorker')),
         );
-        self::assertNull($container->getService('requestLifecycleConsumer')->hook);
+        self::assertNull($container->getByType(RequestLifecycleConsumer::class)->hook);
         self::assertNull($container->getByType(RequestLifecycleHookInterface::class, false));
     }
 }
