@@ -12,18 +12,31 @@
   "scripts": {
     "test": "XDEBUG_MODE=coverage ./vendor/bin/phpunit",
     "phpstan": "./vendor/bin/phpstan",
-    "phpcs": "./vendor/bin/phpcs",
-    "cs": "./vendor/bin/phpcs",
-    "phpcbf": "./vendor/bin/phpcbf",
-    "cbf": "./vendor/bin/phpcbf"
+    "cs:fix": "./vendor/bin/php-cs-fixer fix --config=.php-cs-fixer.php",
+    "cbf": "@cs:fix",
+    "cs": "./vendor/bin/php-cs-fixer fix --config=.php-cs-fixer.php --dry-run --diff"
   },
   "require-dev": {
     "roave/security-advisories": "dev-latest",
     "phpunit/phpunit": "^12|^13",
     "phpstan/phpstan": "^2.0",
     "phpstan/extension-installer": "^1.2",
-    "squizlabs/php_codesniffer": "^4",
+    "friendsofphp/php-cs-fixer": "^3.95",
     "lsr/logging": "^0.3.2",
+    "lsr/auth": "^0.3.10",
+    "lsr/caching": "^0.3.5",
+    "lsr/core": "^0.4.5",
+    "lsr/cqrs": "^0.1.4",
+    "lsr/db": "^0.3.15",
+    "lsr/inertia": "^0.1.8",
+    "lsr/orm": "^0.3.21",
+    "lsr/request": "^0.3.10",
+    "lsr/roadrunner": "^0.1.13",
+    "lsr/routing": "^0.4.2",
+    "lsr/scheduler": "^0.1.2",
+    "nyholm/psr7": "^1.8",
+    "symfony/console": "^8|^7",
+    "symfony/event-dispatcher": "^8|^7",
     "open-telemetry/opentelemetry-auto-psr3": "^0.3"
   },
   "autoload": {
