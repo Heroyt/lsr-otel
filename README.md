@@ -197,6 +197,8 @@ vendor/bin/phpunit --no-coverage
 
 The development dependencies include the optional LSR bridges, Nyholm PSR-7, Symfony Console/EventDispatcher and PSR-3 auto-instrumentation exercised by the suite; these remain optional for consumers. Tests use this checkout's Composer autoloader. No collector, Redis server, database server or RoadRunner binary is needed.
 
+Development constraints admit Core `^0.6` and ORM `^0.4` in **0.1.7 (unreleased)**, while retaining the previous ranges. These remain optional integrations, not new runtime requirements. Core 0.6 accepts PSR loggers, but automatic storage attachment still applies only to concrete LSR logger services; arbitrary PSR implementations need their own export integration. Dynamic ORM model loggers still require an explicitly selected OTEL storage or a custom provider with its own export configuration.
+
 The log-storage tests require `lsr/logging` `^0.3.4`, which supplies the record-aware storage API. For unpublished logging changes, use a temporary Composer `path` repository pointing at its working tree with `options.symlink: true`, then update only `lsr/logging` and necessary dependencies. Remove the temporary repository before publishing and verify against the released package. The internal PSR-20 clock replacement does not require a breaking release or consumer migration.
 
 CI installs `ext-opentelemetry` for the PSR-3 integration tests, plus the framework dependency extensions (Redis, PDO SQLite, gettext, fileinfo, SimpleXML, ZIP and sockets) and PHPUnit's DOM, mbstring, XML and XMLWriter extensions. The `composer test` script enables Xdebug coverage; the CI command explicitly disables coverage collection.
