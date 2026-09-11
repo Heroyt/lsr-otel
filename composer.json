@@ -2,7 +2,7 @@
   "name": "lsr/otel",
   "license": "MIT",
   "description": "OpenTelemetry integration for the Laser framework.",
-  "version": "0.1.6",
+  "version": "0.1.7-dev",
   "repositories": [
     {
       "type": "composer",
