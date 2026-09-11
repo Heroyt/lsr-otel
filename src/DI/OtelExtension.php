@@ -22,6 +22,10 @@ use Lsr\Db\Connection;
 use Lsr\Db\Lifecycle\DatabaseLifecycleHookInterface;
 use Lsr\Inertia\Lifecycle\InertiaLifecycleHookInterface;
 use Lsr\Inertia\Services\Inertia;
+use Lsr\Logging\Interface\CompositeStorageInterface;
+use Lsr\Logging\Interface\RecordStorageInterface;
+use Lsr\Logging\Logger;
+use Lsr\Logging\Storage\FilteredStorage;
 use Lsr\Orm\Lifecycle\ModelLifecycleHookInterface;
 use Lsr\Orm\ModelRepository;
 use Lsr\Otel\Bridge\Auth\AuthLifecycleHook;
@@ -44,6 +48,8 @@ use Lsr\Otel\GlobalSdkRegistration;
 use Lsr\Otel\InstrumentationRegistry;
 use Lsr\Otel\Lifecycle\TelemetryLifecycle;
 use Lsr\Otel\Lifecycle\TelemetryLifecycleInterface;
+use Lsr\Otel\Logging\LoggerAutoWire;
+use Lsr\Otel\Logging\OtelStorage;
 use Lsr\Otel\Metrics;
 use Lsr\Otel\ProviderFactory;
 use Lsr\Otel\Tracing;
@@ -59,9 +65,11 @@ use Lsr\Scheduler\Lifecycle\SchedulerLifecycleHookInterface;
 use Nette\DI\CompilerExtension;
 use Nette\DI\Definitions\Reference;
 use Nette\DI\Definitions\ServiceDefinition;
+use Nette\DI\InvalidConfigurationException;
 use Nette\PhpGenerator\ClassType;
 use Nette\Schema\Expect;
 use Nette\Schema\Schema;
+use OpenTelemetry\API\Logs\LoggerInterface;
 use OpenTelemetry\Context\Propagation\TextMapPropagatorInterface;
 use OpenTelemetry\SDK\Logs\LoggerProviderInterface;
 use OpenTelemetry\SDK\Metrics\MeterProviderInterface;
@@ -107,7 +115,8 @@ use Symfony\Component\EventDispatcher\EventSubscriberInterface;
  *             queries: bool,
  *             hydration: bool,
  *             modelMetrics: bool
- *         }
+ *         },
+ *         logging: object{autoWire: bool, level: string, filter: ?string}
  *     }
  * }&stdClass $config
  */
@@ -153,6 +162,22 @@ final class OtelExtension extends CompilerExtension
                     'queries' => Expect::bool(true),
                     'hydration' => Expect::bool(false),
                     'modelMetrics' => Expect::bool(false),
+                ]),
+                'logging' => Expect::structure([
+                    'autoWire' => Expect::bool(false),
+                    'level' => Expect::string('DEBUG')->assert(
+                        static fn (string $level): bool => in_array(
+                            strtoupper($level),
+                            ['DEBUG', 'INFO', 'NOTICE', 'WARNING', 'ERROR', 'CRITICAL', 'ALERT', 'EMERGENCY'],
+                            true,
+                        ),
+                        'a PSR-3 log level',
+                    ),
+                    'filter' => Expect::string()->nullable()->default(null)->assert(
+                        static fn (?string $filter): bool => $filter === null
+                            || (str_starts_with($filter, '@') && strlen($filter) > 1),
+                        'a filter service reference such as @loggingFilter',
+                    ),
                 ]),
             ]),
         ]);
@@ -223,6 +248,7 @@ final class OtelExtension extends CompilerExtension
                 [$tracerProvider, $meterProvider, $loggerProvider],
             );
         $this->registerApplicationInstrumentation();
+        $this->registerLogging();
 
         if ( ! $this->config->enabled) {
             return;
@@ -244,6 +270,15 @@ final class OtelExtension extends CompilerExtension
 
     public function beforeCompile(): void {
         $builder = $this->getContainerBuilder();
+
+        if ($builder->hasDefinition($this->prefix('logging.autoWire'))) {
+            foreach ($this->serviceDefinitions(Logger::class) as $definition) {
+                $definition->addSetup(
+                    [new Reference($this->prefix('logging.autoWire')), 'attach'],
+                    [new Reference(Reference::Self)],
+                );
+            }
+        }
 
         if ($builder->hasDefinition($this->prefix('integration.core.http'))) {
             $this->wire(
@@ -398,6 +433,49 @@ final class OtelExtension extends CompilerExtension
             ->setType(Metrics::class)
             ->setFactory([$registry, 'metrics'], [$config->name, $config->version]);
     }
+    private function registerLogging(): void {
+        $config = $this->config->integrations->logging;
+        if (
+            ! interface_exists(RecordStorageInterface::class)
+            || ! interface_exists(CompositeStorageInterface::class)
+            || ! class_exists(FilteredStorage::class)
+        ) {
+            if ($this->config->enabled && $config->autoWire) {
+                throw new InvalidConfigurationException(
+                    $this->prefix('integrations.logging.autoWire')
+                    . ' requires lsr/logging with record-aware and composite storage support.',
+                );
+            }
+            return;
+        }
+
+        $builder = $this->getContainerBuilder();
+        $logger = $builder->addDefinition($this->prefix('logging.logger'))
+            ->setType(LoggerInterface::class)
+            ->setAutowired(false)
+            ->setFactory(
+                [new Reference($this->prefix('instrumentation')), 'logger'],
+                ['lsr/logging'],
+            );
+        $storage = $builder->addDefinition($this->prefix('logging.storage'))
+            ->setType(OtelStorage::class)
+            ->setAutowired(false)
+            ->setFactory(OtelStorage::class, [$logger]);
+
+        if ( ! $this->config->enabled || ! $config->autoWire) {
+            return;
+        }
+
+        $builder->addDefinition($this->prefix('logging.autoWire'))
+            ->setType(LoggerAutoWire::class)
+            ->setAutowired(false)
+            ->setFactory(LoggerAutoWire::class, [
+                $storage,
+                $config->level,
+                $config->filter === null ? null : new Reference(substr($config->filter, 1)),
+            ]);
+    }
+
 
     private function registerCoreIntegration(): void {
         $config = $this->config->integrations->core;
